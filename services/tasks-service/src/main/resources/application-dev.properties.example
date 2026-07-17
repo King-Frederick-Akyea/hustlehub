@@ -1,0 +1,8 @@
+spring.datasource.url=jdbc:postgresql://localhost:5432/hustlehub_tasks
+spring.datasource.username=postgres
+spring.datasource.password=changeme
+app.jwt.secret=changeme-shared-jwt-secret
+app.internal.key=changeme-shared-internal-key
+app.services.identity.url=http://localhost:8181
+spring.jpa.show-sql=false
+logging.level.com.hustlehub.tasks=DEBUG

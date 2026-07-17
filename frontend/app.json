@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "hustlehub",
+    "slug": "hustlehub",
+    "scheme": "hustlehub",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.jpg",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.jpg",
+        "backgroundImage": "./assets/android-icon-background.jpg",
+        "monochromeImage": "./assets/android-icon-monochrome.jpg"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.jpg"
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-notifications"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2898ca9b-6bf4-4bbc-8975-9091ae24b17b"
+      }
+    },
+    "owner": "king-frederick"
+  }
+}

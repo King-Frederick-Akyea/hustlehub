@@ -1,0 +1,318 @@
+// src/screens/main/ChatDetailScreen.tsx
+import React, { useCallback, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { colors } from '../../constants/colors';
+import { spacing } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
+import {
+  getConversation,
+  getMessages,
+  sendMessage as sendMessageRequest,
+  markAsRead,
+  Conversation,
+  ChatMessage,
+} from '../../services/messageService';
+import { parseApiError } from '../../api/errors';
+import { Loading } from '../../components/Shared';
+import Avatar from '../../components/Avatar';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const POLL_INTERVAL_MS = 3500;
+
+function formatMessageTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+const ChatDetailScreen = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
+  const conversationId: string | undefined = route.params?.conversationId;
+
+  const [conversation, setConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [inputText, setInputText] = useState('');
+  const [sending, setSending] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!conversationId) {
+        setError('This conversation could not be found.');
+        setLoading(false);
+        return;
+      }
+
+      let isActive = true;
+
+      (async () => {
+        setLoading(true);
+        try {
+          const [conv, msgs] = await Promise.all([
+            getConversation(conversationId),
+            getMessages(conversationId),
+          ]);
+          if (!isActive) return;
+          setConversation(conv);
+          setMessages(msgs);
+          setError('');
+          markAsRead(conversationId).catch(() => {});
+        } catch (err) {
+          if (isActive) setError(parseApiError(err).message);
+        } finally {
+          if (isActive) setLoading(false);
+        }
+      })();
+
+      const interval = setInterval(() => {
+        getMessages(conversationId)
+          .then((msgs) => {
+            if (!isActive) return;
+            setMessages(msgs);
+            markAsRead(conversationId).catch(() => {});
+          })
+          .catch(() => {
+            // Silent failure on background polling — don't interrupt the user with a poll error.
+          });
+      }, POLL_INTERVAL_MS);
+
+      return () => {
+        isActive = false;
+        clearInterval(interval);
+      };
+    }, [conversationId])
+  );
+
+  const handleSend = async () => {
+    const text = inputText.trim();
+    if (!text || sending || !conversationId) return;
+
+    setInputText('');
+    setSending(true);
+    try {
+      const message = await sendMessageRequest(conversationId, text);
+      setMessages((prev) => [...prev, message]);
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (err) {
+      setError(parseApiError(err).message);
+      setInputText(text);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const renderItem = ({ item }: { item: ChatMessage }) => {
+    const isMe = item.isMine;
+    return (
+      <View style={[styles.messageRow, isMe ? styles.messageRowRight : styles.messageRowLeft]}>
+        <View style={[styles.messageBubble, isMe ? styles.messageBubbleMe : styles.messageBubbleOther]}>
+          <Text style={[styles.messageText, isMe ? styles.messageTextMe : styles.messageTextOther]}>
+            {item.text}
+          </Text>
+          <Text style={styles.messageTime}>{formatMessageTime(item.createdAt)}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const otherUser = conversation?.otherUser;
+
+  return (
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Avatar
+            source={otherUser?.avatarUrl ? `${API_URL}${otherUser.avatarUrl}` : undefined}
+            name={otherUser?.fullName}
+            size="sm"
+          />
+          <Text style={styles.headerName}>{otherUser?.fullName ?? 'Chat'}</Text>
+        </View>
+        <View style={{ width: 44 }} />
+      </View>
+
+      {loading && messages.length === 0 ? (
+        <Loading text="Loading conversation..." />
+      ) : error && messages.length === 0 ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={48} color={colors.textTertiary} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.messagesList}
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        />
+      )}
+
+      {/* Input Bar */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        style={[styles.inputBar, { paddingBottom: insets.bottom + spacing.sm }]}
+      >
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Type a message..."
+            placeholderTextColor={colors.placeholder}
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            editable={!!conversationId}
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, (!inputText.trim() || sending) && styles.sendButtonDisabled]}
+            onPress={handleSend}
+            disabled={!inputText.trim() || sending}
+          >
+            <Ionicons name="send" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backButton: {
+    padding: spacing.sm,
+  },
+  headerCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  headerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing['2xl'],
+    gap: spacing.md,
+  },
+  errorText: {
+    fontSize: typography.fontSize.base,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  messagesList: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  messageRow: {
+    marginBottom: spacing.md,
+  },
+  messageRowLeft: {
+    alignItems: 'flex-start',
+  },
+  messageRowRight: {
+    alignItems: 'flex-end',
+  },
+  messageBubble: {
+    maxWidth: '80%',
+    padding: spacing.md,
+    borderRadius: 16,
+    borderTopLeftRadius: 4,
+  },
+  messageBubbleOther: {
+    backgroundColor: colors.surfaceSecondary,
+    borderTopLeftRadius: 0,
+  },
+  messageBubbleMe: {
+    backgroundColor: colors.primary,
+    borderTopRightRadius: 0,
+  },
+  messageText: {
+    fontSize: typography.fontSize.base,
+    lineHeight: 22,
+  },
+  messageTextOther: {
+    color: colors.textPrimary,
+  },
+  messageTextMe: {
+    color: '#FFFFFF',
+  },
+  messageTime: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  inputBar: {
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  textInput: {
+    flex: 1,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: typography.fontSize.base,
+    color: colors.textPrimary,
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
+  },
+});
+
+export default ChatDetailScreen;

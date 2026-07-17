@@ -1,0 +1,18 @@
+# Claude Code local settings (personal, not shared)
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# services/ (new multi-module backend) — mirrors backend/.gitignore per-module
+services/*/target/
+services/*/uploads/
+services/*/src/main/resources/application-dev.properties
+services/*/src/main/resources/application-local.properties
+services/.mvn/wrapper/maven-wrapper.jar
+services/*/.mvn/wrapper/maven-wrapper.jar
