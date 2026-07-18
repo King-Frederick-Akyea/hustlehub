@@ -1,0 +1,23 @@
+# Copy this file to application-dev.properties (already gitignored) and fill in real values.
+# application-dev.properties is loaded automatically because application.properties defaults
+# spring.profiles.active to "dev".
+
+spring.datasource.url=jdbc:postgresql://localhost:5432/hustlehub_payments
+spring.datasource.username=postgres
+spring.datasource.password=replace-with-your-postgres-password
+
+# Must match the secret used by every other service in the reactor (identity-service issues
+# the tokens; every other service only validates them) - generate one with:
+# [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
+app.jwt.secret=replace-with-a-base64-random-32-plus-byte-secret
+
+# Must match every other service's app.internal.key (see InternalPaymentsController).
+app.internal.key=changeme-shared-internal-key
+app.services.identity.url=http://localhost:8181
+app.services.payments.url=http://localhost:8185
+
+# Paystack test secret key - from your Paystack dashboard's test-mode API keys page.
+app.paystack.secret-key=sk_test_replace_with_your_paystack_test_secret_key
+
+spring.jpa.show-sql=false
+logging.level.com.hustlehub.payments=DEBUG
