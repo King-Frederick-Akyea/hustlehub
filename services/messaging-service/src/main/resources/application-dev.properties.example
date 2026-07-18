@@ -1,0 +1,19 @@
+# Copy this file to application-dev.properties (already gitignored) and fill in real values.
+# application-dev.properties is loaded automatically because application.properties defaults
+# spring.profiles.active to "dev".
+
+spring.datasource.url=jdbc:postgresql://localhost:5432/hustlehub_messaging
+spring.datasource.username=postgres
+spring.datasource.password=replace-with-your-postgres-password
+
+# Must match the same app.jwt.secret configured on every other service — they all validate the
+# same tokens issued by identity-service.
+app.jwt.secret=replace-with-a-base64-random-32-plus-byte-secret
+
+# Must match the same app.internal.key configured on identity-service's internal endpoints.
+app.internal.key=replace-with-a-base64-random-internal-api-key
+
+app.services.identity.url=http://localhost:8181
+
+spring.jpa.show-sql=false
+logging.level.com.hustlehub.messaging=DEBUG
