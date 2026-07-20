@@ -290,7 +290,7 @@ const PostTaskScreen = ({ navigation }: ScreenProps<'CreateTask'>) => {
   };
 
   const handlePost = async () => {
-    if (!isStepValid()) return;
+    if (!isStepValid() || !category) return;
     setLoading(true);
     setPostError('');
     try {

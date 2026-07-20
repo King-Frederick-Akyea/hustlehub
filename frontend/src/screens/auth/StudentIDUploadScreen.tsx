@@ -25,11 +25,11 @@ const StudentIDUploadScreen = ({ navigation }: ScreenProps<'StudentIDUpload'>) =
   const { uploadStudentId } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const [showPermissionModal, setShowPermissionModal] = useState(false);
-  const [capturedImage, setCapturedImage] = useState(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
-  const cameraRef = useRef(null);
+  const cameraRef = useRef<CameraView>(null);
   
   // Animation for modal
   const modalScale = useRef(new Animated.Value(0.8)).current;

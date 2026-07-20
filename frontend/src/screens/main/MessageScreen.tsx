@@ -42,7 +42,9 @@ function formatConversationTime(iso: string | null): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-const MessagesScreen = ({ navigation }: ScreenProps<'MessagesScreen'>) => {
+// Registered under two route names — "Messages" in MainNavigator's stack, "MessagesScreen" as a
+// main tab — both share the same (paramless) shape, so this accepts either.
+const MessagesScreen = ({ navigation }: ScreenProps<'Messages' | 'MessagesScreen'>) => {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');

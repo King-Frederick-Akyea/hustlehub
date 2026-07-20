@@ -27,6 +27,7 @@ import {
   makeOffer,
   acceptOffer,
   rejectOffer,
+  withdrawOffer,
   ListingItem,
   ListingOfferItem,
   ListingOfferType,
@@ -171,6 +172,27 @@ const ListingDetailsScreen = ({ navigation, route }: ScreenProps<'ListingDetails
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleWithdrawOffer = (offerId: string) => {
+    Alert.alert('Withdraw offer?', 'This cancels your offer. Any held funds will be refunded to your wallet.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Withdraw',
+        style: 'destructive',
+        onPress: async () => {
+          setActionLoading(true);
+          try {
+            await withdrawOffer(offerId);
+            loadListing();
+          } catch (error) {
+            Alert.alert('Could not withdraw offer', parseApiError(error).message);
+          } finally {
+            setActionLoading(false);
+          }
+        },
+      },
+    ]);
   };
 
   if (loadingListing && !listing) {
@@ -374,6 +396,15 @@ const ListingDetailsScreen = ({ navigation, route }: ScreenProps<'ListingDetails
                 size="sm"
               />
             </View>
+            {listing.myOfferStatus === 'pending' && listing.myOfferId && (
+              <TouchableOpacity
+                style={[styles.withdrawButton, actionLoading && styles.primaryButtonDisabled]}
+                onPress={() => handleWithdrawOffer(listing.myOfferId!)}
+                disabled={actionLoading}
+              >
+                <Text style={styles.withdrawButtonText}>Withdraw Offer</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -764,6 +795,19 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontWeight: '600',
     color: colors.textInverse,
+  },
+  withdrawButton: {
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: borderRadius.base,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  withdrawButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.error,
   },
   closedState: {
     alignItems: 'center',

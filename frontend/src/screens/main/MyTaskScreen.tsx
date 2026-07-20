@@ -29,7 +29,9 @@ const STATUS_DISPLAY: Record<string, { label: string; color: string }> = {
   disputed: { label: 'Disputed', color: colors.error },
 };
 
-const MyTasksScreen = ({ navigation }: ScreenProps<'MyTasksScreen'>) => {
+// Registered under two route names — "MyTasks" in MainNavigator's stack, "MyTasksScreen" as a
+// main tab — both share the same (paramless) shape, so this accepts either.
+const MyTasksScreen = ({ navigation }: ScreenProps<'MyTasks' | 'MyTasksScreen'>) => {
   const insets = useSafeAreaInsets();
   const { currentRole } = useRole();
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');

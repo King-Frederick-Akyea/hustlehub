@@ -31,6 +31,8 @@ export interface ListingItem {
   offerCount: number;
   /** Your own latest non-withdrawn offer on this listing, or null if you haven't made one / are the owner. */
   myOfferStatus: ListingOfferStatus | null;
+  /** The id of that same offer (for withdrawOffer), or null alongside myOfferStatus. */
+  myOfferId: string | null;
 }
 
 export interface ListingOfferItem {

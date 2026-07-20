@@ -70,7 +70,7 @@ const BID_STATUS_BADGE: Record<string, { label: string; variant: any }> = {
 
 const TaskDetailsScreen = ({ navigation, route }: ScreenProps<'TaskDetails'>) => {
   const insets = useSafeAreaInsets();
-  const mapRef = useRef(null);
+  const mapRef = useRef<MapView>(null);
   const scrollViewRef = useRef(null);
   const { user } = useAuth();
 
@@ -82,9 +82,9 @@ const TaskDetailsScreen = ({ navigation, route }: ScreenProps<'TaskDetails'>) =>
   const [actionLoading, setActionLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
 
-  const [userLocation, setUserLocation] = useState(null);
-  const [routeCoordinates, setRouteCoordinates] = useState([]);
-  const [calculatedDistance, setCalculatedDistance] = useState(null);
+  const [userLocation, setUserLocation] = useState<LatLng | null>(null);
+  const [routeCoordinates, setRouteCoordinates] = useState<LatLng[]>([]);
+  const [calculatedDistance, setCalculatedDistance] = useState<string | null>(null);
   const [canScroll, setCanScroll] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
@@ -609,10 +609,12 @@ const TaskDetailsScreen = ({ navigation, route }: ScreenProps<'TaskDetails'>) =>
           contentContainerStyle={styles.sheetScrollContent}
         >
           <View style={styles.badgeRow}>
-            <View style={[styles.categoryBadge, { backgroundColor: `${meta.color}15` }]}>
-              <Ionicons name={meta.icon as any} size={16} color={meta.color} />
-              <Text style={[styles.categoryText, { color: meta.color }]}>{meta.label}</Text>
-            </View>
+            {meta && (
+              <View style={[styles.categoryBadge, { backgroundColor: `${meta.color}15` }]}>
+                <Ionicons name={meta.icon as any} size={16} color={meta.color} />
+                <Text style={[styles.categoryText, { color: meta.color }]}>{meta.label}</Text>
+              </View>
+            )}
             {task.isUrgent && (
               <View style={styles.urgentBadge}>
                 <Ionicons name="flash" size={14} color="#FF6B6B" />

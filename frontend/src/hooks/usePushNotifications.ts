@@ -24,7 +24,9 @@ Notifications.setNotificationHandler({
  */
 export function navigateForNotificationType(type: string, relatedEntityId: string | null): void {
   if (!navigationRef.isReady()) return;
-  const navigate = navigationRef.navigate as (name: string, params?: object) => void;
+  // The route name is only known at runtime (parsed off a notification payload), so it can't be
+  // narrowed to one of the navigator's literal route names — that's exactly what this cast is for.
+  const navigate = navigationRef.navigate as unknown as (name: string, params?: object) => void;
 
   if (type.startsWith('BID_') || type.startsWith('TASK_')) {
     navigate('TaskDetails', { taskId: relatedEntityId });

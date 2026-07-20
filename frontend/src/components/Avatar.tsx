@@ -32,7 +32,7 @@ const Avatar = ({
   showStatus = false,
   status = 'offline', // online, offline, busy
   showBadge = false,
-  badgeCount,
+  badgeCount = 0,
   style,
 }: AvatarProps) => {
   const getSizeValue = () => {

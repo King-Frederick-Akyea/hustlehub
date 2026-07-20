@@ -28,8 +28,8 @@ const FaceVerificationScreen = ({ navigation }: ScreenProps<'FaceVerification'>)
   const [verifying, setVerifying] = useState(false);
   const [instruction, setInstruction] = useState('Position your face in the circle');
   const [showSuccess, setShowSuccess] = useState(false);
-  const [capturedImage, setCapturedImage] = useState(null);
-  const cameraRef = useRef(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const cameraRef = useRef<CameraView>(null);
   
   // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;

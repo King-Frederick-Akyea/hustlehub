@@ -69,7 +69,7 @@ public class ListingService {
 
         Listing saved = listingRepository.save(listing.build());
         UserSummaryResponse owner = resolveRequiredSummary(ownerId);
-        return ListingResponse.from(saved, owner, 0, null);
+        return ListingResponse.from(saved, owner, 0, null, null);
     }
 
     public List<ListingResponse> getActiveListings(UUID currentUserId, String typeFilter) {
@@ -81,8 +81,13 @@ public class ListingService {
 
         Map<UUID, UserSummaryResponse> summaries = resolveSummaries(listings);
         return listings.stream()
-                .map(listing -> ListingResponse.from(listing, summaries.get(listing.getOwnerId()),
-                        listingOfferRepository.countByListing(listing), myOfferStatus(listing, currentUserId)))
+                .map(listing -> {
+                    Optional<ListingOffer> myOffer = myActiveOffer(listing, currentUserId);
+                    return ListingResponse.from(listing, summaries.get(listing.getOwnerId()),
+                            listingOfferRepository.countByListing(listing),
+                            myOffer.map(o -> o.getStatus().toJson()).orElse(null),
+                            myOffer.map(ListingOffer::getId).orElse(null));
+                })
                 .toList();
     }
 
@@ -92,24 +97,25 @@ public class ListingService {
         List<Listing> listings = listingRepository.findByOwnerIdOrderByCreatedAtDesc(ownerId);
         UserSummaryResponse owner = resolveRequiredSummary(ownerId);
         return listings.stream()
-                .map(listing -> ListingResponse.from(listing, owner, listingOfferRepository.countByListing(listing), null))
+                .map(listing -> ListingResponse.from(listing, owner, listingOfferRepository.countByListing(listing), null, null))
                 .toList();
     }
 
     public ListingResponse getListing(UUID id, UUID currentUserId) {
         Listing listing = findListingOrThrow(id);
         UserSummaryResponse owner = resolveRequiredSummary(listing.getOwnerId());
+        Optional<ListingOffer> myOffer = myActiveOffer(listing, currentUserId);
         return ListingResponse.from(listing, owner, listingOfferRepository.countByListing(listing),
-                myOfferStatus(listing, currentUserId));
+                myOffer.map(o -> o.getStatus().toJson()).orElse(null),
+                myOffer.map(ListingOffer::getId).orElse(null));
     }
 
     /** Mirrors TaskService.myBidStatus: the current user's own latest non-withdrawn offer on this
-     * listing, or null if they haven't made one (or are the owner). */
-    private String myOfferStatus(Listing listing, UUID currentUserId) {
-        Optional<ListingOffer> myLatestOffer = listingOfferRepository.findByListingAndRequesterId(listing, currentUserId).stream()
+     * listing, or empty if they haven't made one (or are the owner). */
+    private Optional<ListingOffer> myActiveOffer(Listing listing, UUID currentUserId) {
+        return listingOfferRepository.findByListingAndRequesterId(listing, currentUserId).stream()
                 .filter(o -> o.getStatus() != OfferStatus.WITHDRAWN)
                 .findFirst();
-        return myLatestOffer.map(o -> o.getStatus().toJson()).orElse(null);
     }
 
     Listing findListingOrThrow(UUID id) {
