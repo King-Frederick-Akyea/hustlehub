@@ -37,6 +37,7 @@ hustlehub/
 │       └── utils/               # Formatting/display helpers shared across screens
 └── services/
     ├── pom.xml                 # Build-only Maven "reactor" (mvn clean install here builds everything)
+    ├── .env.properties.example # Template for shared DB/JWT/internal-key config (copy -> .env.properties)
     ├── common/                 # Shared library: JWT validation, error format, inter-service HTTP clients
     ├── gateway-service/         # Reverse proxy — the only backend host the app talks to (port 8080)
     ├── identity-service/        # Auth, users, student verification (port 8181)
@@ -126,44 +127,49 @@ CREATE DATABASE hustlehub_rentals;
 Each service runs its own Flyway migrations automatically on first boot — you never run SQL
 files by hand.
 
-### 3.2 Backend secrets — `application-dev.properties`
+### 3.2 Backend secrets
 
-Every service's `src/main/resources/application.properties` reads its Postgres password, JWT
-secret, and internal API key from environment variables **with no default** (on purpose — so a
-real secret never accidentally ships baked into a committed file). Locally, these are supplied by
-`application-dev.properties`, which is **gitignored per service** — it never gets committed, so
-every developer (and every fresh clone) has to create it once from the checked-in
-`application-dev.properties.example` template:
+Four values — Postgres host/port/user/password, JWT secret, and internal API key — are read from
+environment variables **with no default** (on purpose — so a real secret never accidentally ships
+baked into a committed file), and are the same across every service. Rather than copy them into
+six separate per-service files, they live in **one shared file**: `services/.env.properties`,
+which every service's `application.properties` imports via `spring.config.import`. It's
+gitignored — create it once from the checked-in template:
 
 ```powershell
-# From services/<service-name>/src/main/resources/
-Copy-Item application-dev.properties.example application-dev.properties
+# From services/
+Copy-Item .env.properties.example .env.properties
 ```
 
-Do this for **identity-service, tasks-service, messaging-service, notifications-service,
-payments-service, and rentals-service** (`gateway-service` needs no secrets — it's a pure proxy).
+Then edit `services/.env.properties` and fill in:
 
-Then edit each new `application-dev.properties` and fill in:
-
-- `spring.datasource.password` — your local Postgres password (same value in all six files).
-- `app.jwt.secret` — any random base64 string, **identical across all six files**. Generate one with:
+- `DB_PASSWORD` — your local Postgres password.
+- `JWT_SECRET` — any random base64 string. Generate one with:
   ```powershell
   [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
   ```
-- `app.internal.key` — same idea, any random string, **identical across all six files**.
+- `INTERNAL_API_KEY` — same idea, any random string.
 
-`identity-service`'s template also has `app.mail.dev-echo-enabled=true` and
-`app.mail.provider=logging|brevo` — leave the provider as `logging` unless you have a real Brevo
-API key; with `dev-echo-enabled=true`, OTP/reset codes are echoed straight back in the API
-response so you can test signup/verification without a real mailbox.
+That's it for **tasks-service, messaging-service, notifications-service, and rentals-service** —
+they need nothing else. **identity-service** and **payments-service** each additionally have their
+own small `application-dev.properties` (same copy-from-`.example` pattern, in that service's own
+`src/main/resources/`) for the one or two things that are genuinely specific to them, not shared:
 
-`payments-service`'s template has `app.paystack.secret-key` — leave blank or use a Paystack
-**test-mode** secret key; wallet top-up/withdraw will 500 if this is required by the flow you're
-testing and left blank.
+- `identity-service/application-dev.properties` — outgoing email. Leave `app.mail.provider=logging`
+  (the default — just prints codes to the console) unless you have a real Brevo API key; with
+  `app.mail.dev-echo-enabled=true`, OTP/reset codes are also echoed straight back in the API
+  response, so you can test signup/verification without a real mailbox either way.
+- `payments-service/application-dev.properties` — `app.paystack.secret-key`, a Paystack **test-mode**
+  secret key from your Paystack dashboard. Leave it out and the service still boots fine; wallet
+  top-up/withdraw specifically will 500 without it.
+
+`gateway-service` needs no secrets at all — it's a pure proxy.
 
 > **This is the single most common reason a service "won't start" or "used to work and now
-> doesn't":** a missing or out-of-sync `application-dev.properties`, or one service having a
-> different `app.jwt.secret`/`app.internal.key` than the others. See §6 for the exact symptoms.
+> doesn't":** a missing `services/.env.properties`, or someone editing one service's copy of these
+> values independently instead of the shared file (they must be byte-for-byte identical across
+> every service — see §6 for the exact symptoms). Since the file is shared, there's now only one
+> place this can go wrong instead of six.
 
 ### 3.3 Frontend environment
 
@@ -280,13 +286,13 @@ const MyScreen = ({ navigation, route }: ScreenProps<'MyRouteName'>) => { ... };
 
 **`Could not resolve placeholder 'DB_PASSWORD' / 'JWT_SECRET' / 'INTERNAL_API_KEY'` at startup**
 (`org.springframework.boot.context.properties.bind....` or a Flyway/HikariCP failure right after
-the banner) — you're missing `application-dev.properties` for that service, or `spring.profiles.active`
-somehow isn't resolving to `dev`. Fix: see §3.2.
+the banner) — you're missing `services/.env.properties`. Fix: see §3.2.
 
-**One service returns 401/403 on requests carrying a token another service issued** — that
-service's `app.jwt.secret` doesn't match the others (or `app.internal.key` for `/internal/**`
-calls). All six business services must share the exact same two secrets. Copy the working values
-from any already-configured service's `application-dev.properties` into the others.
+**One service returns 401/403 on requests carrying a token another service issued** — shouldn't
+happen anymore now that the secrets live in one shared `services/.env.properties`, but if you ever
+see it: something is overriding `JWT_SECRET`/`INTERNAL_API_KEY` for just one service (an env var set
+in that specific terminal, a stray line re-added to that service's own `application-dev.properties`,
+etc.) — all six business services must resolve to the exact same two values.
 
 **`Connection to localhost:5432 refused`** — Postgres isn't running. On Windows: `Get-Service
 postgresql*` to check, `Start-Service postgresql-x64-17` (adjust version) to start it.
@@ -337,8 +343,37 @@ component with `ScreenProps<'YourRouteName'>`.
   only being emailed — this is what lets `ResetPasswordScreen` pre-fill a token in dev without a
   working mail provider. Never enable this in a real deployment.
 - `identity-service` defaults `app.mail.provider` to `logging`, which just prints codes to the
-  console instead of sending real email — fine for local dev, not for production.
+  console instead of sending real email — fine for local dev, not for production. Set it to
+  `brevo` (plus `app.mail.brevo.api-key`/`app.mail.from-address`) to send real email through
+  Brevo's transactional email API instead.
+- `payments-service`'s Paystack integration runs in **test mode** off a `sk_test_...` secret key —
+  no real money moves. Top-up/withdraw call out to Paystack's test API; everything else in the
+  wallet (balance, transaction history, task/rental escrow hold-and-release) works with no
+  Paystack key at all, since escrow is internal ledger bookkeeping in `wallet_transactions`, not a
+  Paystack call.
 - Every service's Flyway config sets `spring.flyway.baseline-on-migrate=true` with a specific
   baseline version — this exists so a database that already has some tables from an earlier
   version of the schema won't make Flyway try (and fail) to recreate them; it has no effect once a
   service's `flyway_schema_history` table already exists.
+
+## 8. Business rules worth knowing
+
+A few authorization/workflow decisions that aren't obvious from the UI alone, for anyone extending
+these flows:
+
+- **Only the assigned tasker can mark a task complete** (`POST /api/tasks/{id}/complete`), not the
+  poster. Completion releases the poster's held escrow to the tasker, so letting the poster
+  trigger it unilaterally would let them release payment (or refuse to) without the tasker ever
+  having signaled the work was actually done. The poster can still track progress via the task's
+  status-update log and message the tasker; they just don't get a "Mark Complete" button.
+- **A listing owner never sees their own listings in the public browse feed**
+  (`GET /api/listings`) — `getActiveListings` explicitly excludes the current user's own listings,
+  same as `GET /api/tasks` does for tasks. To see and manage what you've posted, use
+  `GET /api/listings/mine` — in the app, that's the "Mine" tab on the Rentals & Barter screen. The
+  same screen (`ListingDetailsScreen`) that shows offers/bids to a browsing user also shows an
+  "Offers Received" panel with accept/reject actions when you're viewing your own listing.
+- **`ListingResponse.offerCount`/`myOfferStatus`** (mirroring `TaskResponse.bidCount`/`myBidStatus`)
+  are what let the frontend hide the "Rent"/"Offer" button once you already have a pending or
+  accepted offer on a listing, and show how many offers an owner has received without opening each
+  listing individually. A `rejected` `myOfferStatus` does **not** block making a new offer — same
+  as a rejected bid doesn't block re-bidding on a task.

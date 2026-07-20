@@ -1,23 +1,18 @@
 # Copy this file to application-dev.properties (already gitignored) and fill in real values.
 # application-dev.properties is loaded automatically because application.properties defaults
 # spring.profiles.active to "dev".
-
-spring.datasource.url=jdbc:postgresql://localhost:5432/hustlehub_identity
-spring.datasource.username=postgres
-spring.datasource.password=replace-with-your-postgres-password
-
-# Generate one with: [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
-# Must match the secret used by other services (gateway/tasks/etc.) so tokens validate everywhere.
-app.jwt.secret=replace-with-a-base64-random-32-plus-byte-secret
-
-# Shared secret other services must send as X-Internal-Key when calling /internal/** here.
-# Must match app.internal.key in every other service's config.
-app.internal.key=replace-with-a-shared-internal-api-key
+#
+# DB password / JWT secret / internal API key are NOT set here - they come from the one shared
+# services/.env.properties every service imports (see services/.env.properties.example). This file
+# only holds what's genuinely specific to identity-service: outgoing email.
 
 app.mail.dev-echo-enabled=true
 
-# Brevo transactional email HTTP API — from Brevo dashboard: Settings -> SMTP & API -> API Keys tab.
+# "logging" (default, safe) just logs codes to the console instead of emailing them - fine to leave
+# this whole block out entirely if you don't need real email delivery locally.
 app.mail.provider=brevo
+
+# Brevo transactional email HTTP API - from Brevo dashboard: Settings -> SMTP & API -> API Keys tab.
 app.mail.brevo.api-key=replace-with-your-brevo-api-key
 app.mail.from-address=replace-with-a-verified-brevo-sender@example.com
 app.mail.from-name=HustleHub

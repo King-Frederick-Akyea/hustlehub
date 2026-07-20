@@ -97,7 +97,10 @@ const ActiveTaskScreen = ({ navigation, route }: ScreenProps<'ActiveTask'>) => {
 
   const canManage = task ? task.status === 'in_progress' : false;
   const showComposer = canManage && isAssignedTasker;
-  const showCompleteButton = canManage && (isPoster || isAssignedTasker);
+  // Only the tasker actually doing the work can mark it done — the poster confirming completion
+  // unilaterally (before the tasker even signals they're finished) would release escrow to the
+  // tasker with nothing to back it up. The poster can still track progress via the log above.
+  const showCompleteButton = canManage && isAssignedTasker;
 
   const handleMessage = async () => {
     if (!task || !otherParty) return;

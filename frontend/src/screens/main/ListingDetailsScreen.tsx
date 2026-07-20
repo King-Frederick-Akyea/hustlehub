@@ -355,7 +355,30 @@ const ListingDetailsScreen = ({ navigation, route }: ScreenProps<'ListingDetails
           </View>
         )}
 
-        {!isOwner && listing.status === 'active' && (canCash || canBarter) && (
+        {!isOwner && listing.myOfferStatus && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Offer</Text>
+            <View style={styles.offerRow}>
+              <View style={styles.offerInfo}>
+                <Text style={styles.description}>
+                  {listing.myOfferStatus === 'pending'
+                    ? "You've made an offer on this listing. The owner hasn't responded yet."
+                    : listing.myOfferStatus === 'accepted'
+                      ? 'Your offer was accepted!'
+                      : 'Your previous offer on this listing was rejected. You can make a new one below.'}
+                </Text>
+              </View>
+              <Badge
+                label={OFFER_STATUS_BADGE[listing.myOfferStatus]?.label ?? listing.myOfferStatus}
+                variant={OFFER_STATUS_BADGE[listing.myOfferStatus]?.variant ?? 'default'}
+                size="sm"
+              />
+            </View>
+          </View>
+        )}
+
+        {!isOwner && listing.status === 'active' && (canCash || canBarter) &&
+          (!listing.myOfferStatus || listing.myOfferStatus === 'rejected') && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Make an Offer</Text>
 

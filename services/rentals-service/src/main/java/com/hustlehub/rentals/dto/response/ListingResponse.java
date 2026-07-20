@@ -19,11 +19,13 @@ public record ListingResponse(
         String offering,
         String seeking,
         String status,
-        Instant createdAt
+        Instant createdAt,
+        int offerCount,
+        String myOfferStatus
 ) {
     /** {@code owner} is pre-resolved by the service layer via UserServiceClient — this entity has
      * no JPA relation to load it from (no users table in this service). */
-    public static ListingResponse from(Listing listing, UserSummaryResponse owner) {
+    public static ListingResponse from(Listing listing, UserSummaryResponse owner, long offerCount, String myOfferStatus) {
         return new ListingResponse(
                 listing.getId(),
                 listing.getOwnerId(),
@@ -36,7 +38,9 @@ public record ListingResponse(
                 listing.getOffering(),
                 listing.getSeeking(),
                 listing.getStatus().toJson(),
-                listing.getCreatedAt()
+                listing.getCreatedAt(),
+                (int) offerCount,
+                myOfferStatus
         );
     }
 }

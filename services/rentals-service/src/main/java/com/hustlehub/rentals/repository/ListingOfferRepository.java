@@ -10,4 +10,8 @@ import java.util.UUID;
 public interface ListingOfferRepository extends JpaRepository<ListingOffer, UUID> {
 
     List<ListingOffer> findByListingOrderByCreatedAtDesc(Listing listing);
+
+    long countByListing(Listing listing);
+
+    List<ListingOffer> findByListingAndRequesterId(Listing listing, UUID requesterId);
 }

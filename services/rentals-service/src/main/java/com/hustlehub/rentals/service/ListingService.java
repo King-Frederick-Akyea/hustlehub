@@ -8,8 +8,11 @@ import com.hustlehub.common.exception.ResourceNotFoundException;
 import com.hustlehub.rentals.dto.request.CreateListingRequest;
 import com.hustlehub.rentals.dto.response.ListingResponse;
 import com.hustlehub.rentals.entity.Listing;
+import com.hustlehub.rentals.entity.ListingOffer;
 import com.hustlehub.rentals.entity.ListingStatus;
 import com.hustlehub.rentals.entity.ListingType;
+import com.hustlehub.rentals.entity.OfferStatus;
+import com.hustlehub.rentals.repository.ListingOfferRepository;
 import com.hustlehub.rentals.repository.ListingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +22,7 @@ import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -28,6 +32,7 @@ import java.util.stream.Collectors;
 public class ListingService {
 
     private final ListingRepository listingRepository;
+    private final ListingOfferRepository listingOfferRepository;
     private final UserServiceClient userServiceClient;
 
     @Transactional
@@ -64,7 +69,7 @@ public class ListingService {
 
         Listing saved = listingRepository.save(listing.build());
         UserSummaryResponse owner = resolveRequiredSummary(ownerId);
-        return ListingResponse.from(saved, owner);
+        return ListingResponse.from(saved, owner, 0, null);
     }
 
     public List<ListingResponse> getActiveListings(UUID currentUserId, String typeFilter) {
@@ -76,22 +81,35 @@ public class ListingService {
 
         Map<UUID, UserSummaryResponse> summaries = resolveSummaries(listings);
         return listings.stream()
-                .map(listing -> ListingResponse.from(listing, summaries.get(listing.getOwnerId())))
+                .map(listing -> ListingResponse.from(listing, summaries.get(listing.getOwnerId()),
+                        listingOfferRepository.countByListing(listing), myOfferStatus(listing, currentUserId)))
                 .toList();
     }
 
+    /** The owner viewing their own listings — offer count matters here (that's the whole point of
+     * this view), but myOfferStatus never applies since you can't make an offer on your own listing. */
     public List<ListingResponse> getMyListings(UUID ownerId) {
         List<Listing> listings = listingRepository.findByOwnerIdOrderByCreatedAtDesc(ownerId);
         UserSummaryResponse owner = resolveRequiredSummary(ownerId);
         return listings.stream()
-                .map(listing -> ListingResponse.from(listing, owner))
+                .map(listing -> ListingResponse.from(listing, owner, listingOfferRepository.countByListing(listing), null))
                 .toList();
     }
 
-    public ListingResponse getListing(UUID id) {
+    public ListingResponse getListing(UUID id, UUID currentUserId) {
         Listing listing = findListingOrThrow(id);
         UserSummaryResponse owner = resolveRequiredSummary(listing.getOwnerId());
-        return ListingResponse.from(listing, owner);
+        return ListingResponse.from(listing, owner, listingOfferRepository.countByListing(listing),
+                myOfferStatus(listing, currentUserId));
+    }
+
+    /** Mirrors TaskService.myBidStatus: the current user's own latest non-withdrawn offer on this
+     * listing, or null if they haven't made one (or are the owner). */
+    private String myOfferStatus(Listing listing, UUID currentUserId) {
+        Optional<ListingOffer> myLatestOffer = listingOfferRepository.findByListingAndRequesterId(listing, currentUserId).stream()
+                .filter(o -> o.getStatus() != OfferStatus.WITHDRAWN)
+                .findFirst();
+        return myLatestOffer.map(o -> o.getStatus().toJson()).orElse(null);
     }
 
     Listing findListingOrThrow(UUID id) {

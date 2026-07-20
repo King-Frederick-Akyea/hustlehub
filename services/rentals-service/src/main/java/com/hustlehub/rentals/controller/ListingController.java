@@ -47,6 +47,6 @@ public class ListingController {
 
     @GetMapping("/{id}")
     public ListingResponse getListing(@AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id) {
-        return listingService.getListing(id);
+        return listingService.getListing(id, principal.id());
     }
 }

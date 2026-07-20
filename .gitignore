@@ -14,5 +14,6 @@ services/*/target/
 services/*/uploads/
 services/*/src/main/resources/application-dev.properties
 services/*/src/main/resources/application-local.properties
+services/.env.properties
 services/.mvn/wrapper/maven-wrapper.jar
 services/*/.mvn/wrapper/maven-wrapper.jar

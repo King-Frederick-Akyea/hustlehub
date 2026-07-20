@@ -27,6 +27,10 @@ export interface ListingItem {
   seeking: string | null;
   status: ListingStatus;
   createdAt: string;
+  /** Total offers received — only meaningful when you're the owner (see myOfferStatus otherwise). */
+  offerCount: number;
+  /** Your own latest non-withdrawn offer on this listing, or null if you haven't made one / are the owner. */
+  myOfferStatus: ListingOfferStatus | null;
 }
 
 export interface ListingOfferItem {

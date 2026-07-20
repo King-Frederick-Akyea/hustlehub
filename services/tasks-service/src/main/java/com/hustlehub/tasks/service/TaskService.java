@@ -161,10 +161,9 @@ public class TaskService {
     @Transactional
     public TaskResponse completeTask(UUID id, UUID currentUserId) {
         Task task = findTaskOrThrow(id);
-        boolean isPoster = task.getPosterId().equals(currentUserId);
         boolean isAssignedTasker = task.getAssignedTaskerId() != null && task.getAssignedTaskerId().equals(currentUserId);
-        if (!isPoster && !isAssignedTasker) {
-            throw new ForbiddenActionException("Only the poster or assigned tasker can complete this task");
+        if (!isAssignedTasker) {
+            throw new ForbiddenActionException("Only the assigned tasker can mark this task complete");
         }
         if (task.getStatus() != TaskStatus.IN_PROGRESS) {
             throw new InvalidTaskStateException("Only in-progress tasks can be marked complete");
@@ -174,8 +173,7 @@ public class TaskService {
         task = taskRepository.save(task);
         paymentsServiceClient.releaseHold(task.getId(), task.getAssignedTaskerId());
 
-        UUID otherPartyId = isPoster ? task.getAssignedTaskerId() : task.getPosterId();
-        notificationsServiceClient.notify(otherPartyId, NotificationType.TASK_COMPLETED,
+        notificationsServiceClient.notify(task.getPosterId(), NotificationType.TASK_COMPLETED,
                 "Task marked complete",
                 "\"" + task.getTitle() + "\" was marked complete.",
                 task.getId());

@@ -12,28 +12,35 @@ import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
-import { getListings, ListingItem } from '../../services/rentalService';
+import { getListings, getMyListings, ListingItem } from '../../services/rentalService';
 import { formatRelativeTime, resolveAvatarUrl } from '../../utils/taskDisplay';
 import { Loading } from '../../components/Shared';
 import Avatar from '../../components/Avatar';
 import type { ScreenProps } from '../../navigation/types';
 
+type FilterTab = 'all' | 'barter' | 'rental' | 'mine';
+
+const OFFER_STATUS_LABEL: Record<string, string> = {
+  pending: 'Offer Pending',
+  accepted: 'Offer Accepted',
+};
+
 const RentalsScreen = ({ navigation }: ScreenProps<'Rentals'>) => {
   const insets = useSafeAreaInsets();
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [listings, setListings] = useState<ListingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadListings = useCallback(async () => {
     setLoading(true);
     try {
-      setListings(await getListings());
+      setListings(activeFilter === 'mine' ? await getMyListings() : await getListings());
     } catch (error) {
       console.warn('Failed to load listings', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeFilter]);
 
   useFocusEffect(
     useCallback(() => {
@@ -41,12 +48,18 @@ const RentalsScreen = ({ navigation }: ScreenProps<'Rentals'>) => {
     }, [loadListings])
   );
 
+  const viewingMine = activeFilter === 'mine';
   const filteredItems =
-    activeFilter === 'all'
-      ? listings
-      : listings.filter((item) => item.type.toLowerCase() === activeFilter);
+    activeFilter === 'barter' || activeFilter === 'rental'
+      ? listings.filter((item) => item.type.toLowerCase() === activeFilter)
+      : listings;
 
-  const renderItem = ({ item }: { item: ListingItem }) => (
+  const renderItem = ({ item }: { item: ListingItem }) => {
+    const activeOfferStatus = item.myOfferStatus && OFFER_STATUS_LABEL[item.myOfferStatus]
+      ? item.myOfferStatus
+      : null;
+
+    return (
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.7}
@@ -103,7 +116,7 @@ const RentalsScreen = ({ navigation }: ScreenProps<'Rentals'>) => {
         <View style={styles.posterInfo}>
           <Avatar source={resolveAvatarUrl(item.owner.avatarUrl)} name={item.owner.fullName} size="xs" />
           <View style={{ marginLeft: spacing.sm }}>
-            <Text style={styles.posterName}>{item.owner.fullName}</Text>
+            <Text style={styles.posterName}>{viewingMine ? 'You' : item.owner.fullName}</Text>
             {item.owner.verified && (
               <View style={styles.ratingRow}>
                 <Ionicons name="checkmark-circle" size={12} color={colors.verified} />
@@ -114,16 +127,21 @@ const RentalsScreen = ({ navigation }: ScreenProps<'Rentals'>) => {
         </View>
 
         <TouchableOpacity
-          style={styles.offerButton}
+          style={[styles.offerButton, activeOfferStatus && styles.offerButtonSent]}
           onPress={() => navigation.navigate('ListingDetails', { listingId: item.id })}
         >
-          <Text style={styles.offerButtonText}>
-            {item.type === 'barter' ? 'Offer' : 'Rent'}
+          <Text style={[styles.offerButtonText, activeOfferStatus && styles.offerButtonTextSent]}>
+            {viewingMine
+              ? `View Offers${item.offerCount > 0 ? ` (${item.offerCount})` : ''}`
+              : activeOfferStatus
+                ? OFFER_STATUS_LABEL[activeOfferStatus]
+                : item.type === 'barter' ? 'Offer' : 'Rent'}
           </Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -176,6 +194,20 @@ const RentalsScreen = ({ navigation }: ScreenProps<'Rentals'>) => {
             Rentals
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterTab, activeFilter === 'mine' && styles.filterTabActive]}
+          onPress={() => setActiveFilter('mine')}
+        >
+          <Ionicons
+            name="person-outline"
+            size={16}
+            color={activeFilter === 'mine' ? colors.textInverse : colors.textSecondary}
+            style={{ marginRight: spacing.xs }}
+          />
+          <Text style={[styles.filterText, activeFilter === 'mine' && styles.filterTextActive]}>
+            Mine
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Items List */}
@@ -191,7 +223,9 @@ const RentalsScreen = ({ navigation }: ScreenProps<'Rentals'>) => {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="cube-outline" size={40} color={colors.textTertiary} />
-              <Text style={styles.emptyStateText}>No listings yet</Text>
+              <Text style={styles.emptyStateText}>
+                {viewingMine ? "You haven't posted any listings yet" : 'No listings yet'}
+              </Text>
             </View>
           }
         />
@@ -372,6 +406,14 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.semiBold,
     color: colors.textInverse,
+  },
+  offerButtonSent: {
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  offerButtonTextSent: {
+    color: colors.textSecondary,
   },
   emptyState: {
     alignItems: 'center',
