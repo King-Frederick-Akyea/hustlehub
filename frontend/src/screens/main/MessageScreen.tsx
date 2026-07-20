@@ -18,6 +18,7 @@ import { getConversations, Conversation } from '../../services/messageService';
 import { parseApiError } from '../../api/errors';
 import { Loading, EmptyState } from '../../components/Shared';
 import Avatar from '../../components/Avatar';
+import type { ScreenProps } from '../../navigation/types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -41,7 +42,7 @@ function formatConversationTime(iso: string | null): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-const MessagesScreen = ({ navigation }) => {
+const MessagesScreen = ({ navigation }: ScreenProps<'MessagesScreen'>) => {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');

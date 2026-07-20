@@ -21,10 +21,11 @@ import { categoryMeta, distanceKm, formatDistance, formatRelativeTime, resolveAv
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { Loading } from '../../components/Shared';
 import Avatar from '../../components/Avatar';
+import type { ScreenProps } from '../../navigation/types';
 
 const filters = [{ id: 'all', label: 'All' }, ...TASK_CATEGORIES];
 
-const TasksScreen = ({ navigation }) => {
+const TasksScreen = ({ navigation }: ScreenProps<'SearchTab'>) => {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');

@@ -17,10 +17,11 @@ import { typography } from '../../constants/typography';
 import { useRole } from '../../context/RoleContext';
 import { useAuth } from '../../context/AuthContext';
 import Avatar from '../../components/Avatar';
+import type { ScreenProps } from '../../navigation/types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-const ProfileScreen = ({ navigation }) => {
+const ProfileScreen = ({ navigation }: ScreenProps<'ProfileTab'>) => {
   const insets = useSafeAreaInsets();
   const { fixedRole, currentRole, setCurrentRole, canSwitch } = useRole();
   const { user, logout } = useAuth();

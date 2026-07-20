@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { spacing, borderRadius, shadows } from '../constants/spacing';
@@ -7,6 +7,27 @@ import { typography } from '../constants/typography';
 import Avatar from './Avatar';
 import Badge, { BadgeVariant } from './Badge';
 import Button from './Button';
+
+interface BidCardBid {
+  amount: number;
+  message?: string | null;
+  deliveryTime?: string | null;
+  status: string;
+  user?: { name?: string; avatar?: string; verified?: boolean; rating?: number; completedTasks?: number };
+  createdAt?: string;
+  isBarter?: boolean;
+  barterOffer?: string;
+}
+
+interface BidCardProps {
+  bid: BidCardBid;
+  onAccept?: () => void;
+  onReject?: () => void;
+  onPress?: () => void;
+  isOwner?: boolean;
+  showActions?: boolean;
+  style?: StyleProp<ViewStyle>;
+}
 
 const BidCard = ({
   bid,
@@ -16,7 +37,7 @@ const BidCard = ({
   isOwner = false,
   showActions = true,
   style,
-}) => {
+}: BidCardProps) => {
   const {
     amount,
     message,

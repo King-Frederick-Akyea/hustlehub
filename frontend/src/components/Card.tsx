@@ -1,18 +1,30 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
 import { colors } from '../constants/colors';
 import { spacing, borderRadius, shadows } from '../constants/spacing';
 
+type CardVariant = 'elevated' | 'outlined' | 'flat';
+type CardPadding = 'none' | 'sm' | 'md' | 'lg';
+
+interface CardProps {
+  children?: React.ReactNode;
+  variant?: CardVariant;
+  padding?: CardPadding;
+  onPress?: () => void;
+  style?: StyleProp<ViewStyle>;
+  disabled?: boolean;
+}
+
 const Card = ({
   children,
-  variant = 'elevated', // elevated, outlined, flat
-  padding = 'md', // none, sm, md, lg
+  variant = 'elevated',
+  padding = 'md',
   onPress,
   style,
   disabled = false,
-}) => {
+}: CardProps) => {
   const getCardStyle = () => {
-    const baseStyle = [styles.card, styles[`padding_${padding}`]];
+    const baseStyle: StyleProp<ViewStyle>[] = [styles.card, styles[`padding_${padding}`]];
     
     switch (variant) {
       case 'elevated':

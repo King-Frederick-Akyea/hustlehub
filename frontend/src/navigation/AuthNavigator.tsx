@@ -7,8 +7,9 @@ import {
   ForgotPasswordScreen,
   ResetPasswordScreen,
 } from '../screens/auth';
+import type { RootStackParamList } from './types';
 
-const Stack = createStackNavigator();
+const Stack = createStackNavigator<RootStackParamList>();
 
 const AuthNavigator = () => {
   return (

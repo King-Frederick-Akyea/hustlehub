@@ -18,8 +18,9 @@ import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { useAuth } from '../../context/AuthContext';
 import { parseApiError } from '../../api/errors';
+import type { ScreenProps } from '../../navigation/types';
 
-const ForgotPasswordScreen = ({ navigation }) => {
+const ForgotPasswordScreen = ({ navigation }: ScreenProps<'ForgotPassword'>) => {
   const insets = useSafeAreaInsets();
   const { forgotPassword } = useAuth();
   const [email, setEmail] = useState('');

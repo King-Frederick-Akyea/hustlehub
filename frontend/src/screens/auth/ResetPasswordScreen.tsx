@@ -16,8 +16,9 @@ import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { useAuth } from '../../context/AuthContext';
 import { parseApiError } from '../../api/errors';
+import type { ScreenProps } from '../../navigation/types';
 
-const ResetPasswordScreen = ({ navigation, route }) => {
+const ResetPasswordScreen = ({ navigation, route }: ScreenProps<'ResetPassword'>) => {
   const insets = useSafeAreaInsets();
   const { resetPassword } = useAuth();
   const [token, setToken] = useState(route?.params?.devToken ?? '');

@@ -1,11 +1,36 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { spacing, borderRadius, shadows } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import Avatar from './Avatar';
 import Badge, { BadgeVariant } from './Badge';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+interface TaskCardTask {
+  title: string;
+  description?: string;
+  category: string;
+  budget: number;
+  location?: string;
+  deadline?: string;
+  status: string;
+  bidCount?: number;
+  user?: { name?: string; avatar?: string; verified?: boolean };
+  isBarter?: boolean;
+  barterOffer?: string;
+}
+
+interface TaskCardProps {
+  task: TaskCardTask;
+  onPress?: () => void;
+  showBidCount?: boolean;
+  showUser?: boolean;
+  compact?: boolean;
+  style?: StyleProp<ViewStyle>;
+}
 
 const TaskCard = ({
   task,
@@ -14,7 +39,7 @@ const TaskCard = ({
   showUser = true,
   compact = false,
   style,
-}) => {
+}: TaskCardProps) => {
   const {
     title,
     description,
@@ -50,8 +75,8 @@ const TaskCard = ({
   
   const statusBadge = getStatusBadge();
   
-  const getCategoryIcon = () => {
-    const iconMap = {
+  const getCategoryIcon = (): IconName => {
+    const iconMap: Record<string, IconName> = {
       grocery: 'cart',
       laundry: 'shirt',
       documents: 'document-text',

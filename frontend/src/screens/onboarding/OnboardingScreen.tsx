@@ -77,15 +77,21 @@ const onboardingData = [
     bgColor: '#0052CC',
     accentColor: '#4C9AFF',
   },
-];
+] as const;
 
-const OnboardingScreen = ({ onComplete }) => {
+type OnboardingItem = (typeof onboardingData)[number];
+
+interface OnboardingScreenProps {
+  onComplete: () => void;
+}
+
+const OnboardingScreen = ({ onComplete }: OnboardingScreenProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef(null);
+  const flatListRef = useRef<FlatList<OnboardingItem>>(null);
   const insets = useSafeAreaInsets();
   const scrollX = useRef(new Animated.Value(0)).current;
 
-  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
     if (viewableItems.length > 0) {
       setCurrentIndex(viewableItems[0].index || 0);
     }
@@ -114,7 +120,7 @@ const OnboardingScreen = ({ onComplete }) => {
     onComplete();
   };
 
-  const renderIllustration = (item) => (
+  const renderIllustration = (item: OnboardingItem) => (
     <View style={[styles.illustrationContainer, { backgroundColor: item.bgColor }]}>
       {/* Background decorative circles */}
       <View style={[styles.bgCircle, styles.bgCircle1, { backgroundColor: item.accentColor }]} />
@@ -141,7 +147,7 @@ const OnboardingScreen = ({ onComplete }) => {
     </View>
   );
 
-  const renderItem = ({ item, index }) => (
+  const renderItem = ({ item }: { item: OnboardingItem; index: number }) => (
     <View style={styles.slide}>
       {renderIllustration(item)}
       

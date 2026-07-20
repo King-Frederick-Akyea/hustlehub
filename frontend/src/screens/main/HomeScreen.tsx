@@ -21,8 +21,9 @@ import { categoryMeta, distanceKm, formatDistance, formatRelativeTime, resolveAv
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { Loading } from '../../components/Shared';
 import Avatar from '../../components/Avatar';
+import type { ScreenProps } from '../../navigation/types';
 
-const HomeScreen = ({ navigation }) => {
+const HomeScreen = ({ navigation }: ScreenProps<'HomeTab'>) => {
   const insets = useSafeAreaInsets();
   const { currentRole } = useRole();
   const { user } = useAuth();

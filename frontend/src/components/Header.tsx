@@ -6,12 +6,29 @@ import {
   TouchableOpacity,
   StatusBar,
   Platform,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../constants/colors';
 import { spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+interface HeaderProps {
+  title?: string;
+  subtitle?: string;
+  leftIcon?: IconName;
+  onLeftPress?: () => void;
+  rightIcon?: IconName;
+  onRightPress?: () => void;
+  rightComponent?: React.ReactNode;
+  transparent?: boolean;
+  centerTitle?: boolean;
+  style?: StyleProp<ViewStyle>;
+}
 
 const Header = ({
   title,
@@ -24,7 +41,7 @@ const Header = ({
   transparent = false,
   centerTitle = true,
   style,
-}) => {
+}: HeaderProps) => {
   const insets = useSafeAreaInsets();
   
   return (

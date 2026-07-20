@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Text,
 } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../constants/colors';
@@ -21,18 +21,29 @@ import {
   MessagesScreen,
   MyTasksScreen,
 } from '../screens/main';
+import type { RootStackParamList } from './types';
 
-const Tab = createBottomTabNavigator();
-const EmptyScreen = () => null;
+const Tab = createBottomTabNavigator<RootStackParamList>();
+const EmptyScreen = (): null => null;
 
-const CustomTabBar = ({ state, descriptors, navigation }) => {
+type TabRouteName = 'HomeTab' | 'SearchTab' | 'PostTab' | 'MessagesScreen' | 'MyTasksScreen' | 'ProfileTab';
+
+interface TabConfig {
+  name: TabRouteName;
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  iconOutline?: React.ComponentProps<typeof Ionicons>['name'];
+  isCenter?: boolean;
+}
+
+const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
   const insets = useSafeAreaInsets();
   const { currentRole } = useRole();
 
   const isPoster = currentRole === 'poster';
 
   // Define tabs based on current role
-  const getTabs = () => {
+  const getTabs = (): TabConfig[] => {
     if (isPoster) {
       // Poster: Home, Messages, Post (center), My Tasks, Profile
       return [
@@ -56,8 +67,8 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 
   const tabs = getTabs();
 
-  const renderTab = (tab, index) => {
-    const route = state.routes.find(r => r.name === tab.name);
+  const renderTab = (tab: TabConfig, index: number) => {
+    const route = state.routes.find((r) => r.name === tab.name);
     const isFocused = route ? state.index === state.routes.indexOf(route) : false;
 
     const onPress = () => {
@@ -79,7 +90,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       }
     };
 
-    const iconName = isFocused ? tab.icon : tab.iconOutline;
+    const iconName = isFocused ? tab.icon : tab.iconOutline ?? tab.icon;
     const iconColor = isFocused ? colors.primary : colors.textTertiary;
 
     if (tab.isCenter) {
@@ -199,7 +210,7 @@ const MainTabNavigator = () => {
   const isPoster = currentRole === 'poster';
 
   // Define screens conditionally
-  const screens = [
+  const screens: { name: TabRouteName; component: React.ComponentType<any>; show?: boolean }[] = [
     { name: 'HomeTab', component: HomeScreen },
     { name: 'SearchTab', component: TasksScreen, show: !isPoster }, // only for tasker
     { name: 'PostTab', component: EmptyScreen, show: isPoster }, // only for poster

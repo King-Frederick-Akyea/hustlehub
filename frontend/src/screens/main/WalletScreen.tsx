@@ -36,6 +36,7 @@ import {
   WalletTransactionType,
   MobileMoneyProvider,
 } from '../../services/walletService';
+import type { ScreenProps } from '../../navigation/types';
 
 const FALLBACK_DESCRIPTIONS: Record<WalletTransactionType, string> = {
   DEPOSIT: 'Wallet Top-up',
@@ -55,7 +56,7 @@ const PROVIDERS: { id: MobileMoneyProvider; label: string; color: string }[] = [
 
 const EMPTY_BALANCE: WalletBalance = { available: 0, pending: 0, held: 0 };
 
-const WalletScreen = ({ navigation }) => {
+const WalletScreen = ({ navigation }: ScreenProps<'Wallet'>) => {
   const insets = useSafeAreaInsets();
 
   const [balance, setBalance] = useState<WalletBalance>(EMPTY_BALANCE);

@@ -34,6 +34,7 @@ import {
 import { Loading } from '../../components/Shared';
 import Avatar from '../../components/Avatar';
 import Badge from '../../components/Badge';
+import type { ScreenProps } from '../../navigation/types';
 
 const OFFER_STATUS_BADGE: Record<string, { label: string; variant: any }> = {
   pending: { label: 'Pending', variant: 'warning' },
@@ -42,7 +43,7 @@ const OFFER_STATUS_BADGE: Record<string, { label: string; variant: any }> = {
   withdrawn: { label: 'Withdrawn', variant: 'default' },
 };
 
-const ListingDetailsScreen = ({ navigation, route }) => {
+const ListingDetailsScreen = ({ navigation, route }: ScreenProps<'ListingDetails'>) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 

@@ -22,6 +22,7 @@ import { spacing, borderRadius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { createListing, ListingType } from '../../services/rentalService';
 import { parseApiError } from '../../api/errors';
+import type { ScreenProps } from '../../navigation/types';
 
 const STEPS = [
   { id: 0, title: 'What are you posting?', subtitle: 'Choose a listing type' },
@@ -45,7 +46,7 @@ const LISTING_TYPES: { id: ListingType; label: string; description: string; icon
   },
 ];
 
-const CreateListingScreen = ({ navigation }) => {
+const CreateListingScreen = ({ navigation }: ScreenProps<'CreateListing'>) => {
   const insets = useSafeAreaInsets();
 
   const [type, setType] = useState<ListingType | null>(null);

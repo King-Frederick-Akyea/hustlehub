@@ -7,10 +7,13 @@ import {
   VerificationSuccessScreen,
 } from '../screens/auth';
 import type { VerificationStatus } from '../services/authService';
+import type { RootStackParamList } from './types';
 
-const Stack = createStackNavigator();
+const Stack = createStackNavigator<RootStackParamList>();
 
-export function resumeRouteFor(status: VerificationStatus | undefined): string {
+type VerificationRouteName = 'EmailVerification' | 'StudentIDUpload' | 'FaceVerification';
+
+export function resumeRouteFor(status: VerificationStatus | undefined): VerificationRouteName {
   switch (status) {
     case 'email_verified':
       return 'StudentIDUpload';
@@ -26,7 +29,7 @@ export function resumeRouteFor(status: VerificationStatus | undefined): string {
 }
 
 interface VerificationNavigatorProps {
-  initialRoute: string;
+  initialRoute: VerificationRouteName;
 }
 
 const VerificationNavigator: React.FC<VerificationNavigatorProps> = ({ initialRoute }) => {

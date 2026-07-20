@@ -17,8 +17,9 @@ import { getBookmarkedTasks, TaskItem } from '../../services/taskService';
 import { categoryMeta, formatRelativeTime, resolveAvatarUrl, taskDetailRoute } from '../../utils/taskDisplay';
 import { Loading } from '../../components/Shared';
 import Avatar from '../../components/Avatar';
+import type { ScreenProps } from '../../navigation/types';
 
-const BookmarksScreen = ({ navigation }) => {
+const BookmarksScreen = ({ navigation }: ScreenProps<'Bookmarks'>) => {
   const insets = useSafeAreaInsets();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);

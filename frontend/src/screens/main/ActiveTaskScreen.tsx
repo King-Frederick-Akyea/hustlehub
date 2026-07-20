@@ -30,6 +30,7 @@ import {
 } from '../../services/taskService';
 import { Loading } from '../../components/Shared';
 import Avatar from '../../components/Avatar';
+import type { ScreenProps } from '../../navigation/types';
 
 const QUICK_REPLIES = ['On my way', 'Started', 'Picked up', 'Almost done'];
 
@@ -48,7 +49,7 @@ function formatDateTime(iso: string): string {
   });
 }
 
-const ActiveTaskScreen = ({ navigation, route }) => {
+const ActiveTaskScreen = ({ navigation, route }: ScreenProps<'ActiveTask'>) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 

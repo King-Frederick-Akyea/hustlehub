@@ -44,6 +44,7 @@ import {
 import { Loading } from '../../components/Shared';
 import Avatar from '../../components/Avatar';
 import Badge from '../../components/Badge';
+import type { ScreenProps } from '../../navigation/types';
 
 const { width, height } = Dimensions.get('window');
 
@@ -52,8 +53,10 @@ const SHEET_MIN_HEIGHT = height * 0.38;
 const SHEET_MID_HEIGHT = height * 0.58;
 const SHEET_MAX_HEIGHT = height * 0.85;
 
+type LatLng = { latitude: number; longitude: number };
+
 // Modern map style
-const mapStyle = [];
+const mapStyle: any[] = [];
 
 const defaultOrigin = { latitude: 5.6520, longitude: -0.1870 };
 const defaultDestination = { latitude: 5.6580, longitude: -0.1920 };
@@ -65,7 +68,7 @@ const BID_STATUS_BADGE: Record<string, { label: string; variant: any }> = {
   withdrawn: { label: 'Withdrawn', variant: 'default' },
 };
 
-const TaskDetailsScreen = ({ navigation, route }) => {
+const TaskDetailsScreen = ({ navigation, route }: ScreenProps<'TaskDetails'>) => {
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
   const scrollViewRef = useRef(null);
@@ -153,7 +156,7 @@ const TaskDetailsScreen = ({ navigation, route }) => {
   }, [task, navigation]);
 
   // Snap functions (unchanged)
-  const snapToPosition = useCallback((toValue, velocity = 0) => {
+  const snapToPosition = useCallback((toValue: number, velocity = 0) => {
     Animated.spring(sheetPosition, {
       toValue,
       useNativeDriver: true,
@@ -165,7 +168,7 @@ const TaskDetailsScreen = ({ navigation, route }) => {
     setCanScroll(toValue === SNAP_EXPANDED);
   }, [sheetPosition]);
 
-  const getClosestSnapPoint = (value) => {
+  const getClosestSnapPoint = (value: number) => {
     const points = [SNAP_COLLAPSED, SNAP_MID, SNAP_EXPANDED];
     return points.reduce((prev, curr) =>
       Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
@@ -226,8 +229,8 @@ const TaskDetailsScreen = ({ navigation, route }) => {
     })();
   }, [task]);
 
-  const calculateRoute = (from, to) => {
-    const points = [];
+  const calculateRoute = (from: LatLng, to: LatLng) => {
+    const points: LatLng[] = [];
     const steps = 20;
     for (let i = 0; i <= steps; i++) {
       points.push({
@@ -243,7 +246,7 @@ const TaskDetailsScreen = ({ navigation, route }) => {
     setCalculatedDistance(distance.toFixed(1));
   };
 
-  const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
+  const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371;
     const dLat = deg2rad(lat2 - lat1);
     const dLon = deg2rad(lon2 - lon1);
@@ -255,7 +258,7 @@ const TaskDetailsScreen = ({ navigation, route }) => {
     return R * c;
   };
 
-  const deg2rad = (deg) => deg * (Math.PI / 180);
+  const deg2rad = (deg: number) => deg * (Math.PI / 180);
 
   useEffect(() => {
     if (mapRef.current && userLocation && task) {
@@ -394,7 +397,7 @@ const TaskDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleScroll = (event) => {
+  const handleScroll = (event: { nativeEvent: { contentOffset: { y: number } } }) => {
     scrollOffset.current = event.nativeEvent.contentOffset.y;
   };
 
@@ -427,7 +430,7 @@ const TaskDetailsScreen = ({ navigation, route }) => {
 
   // Quick amount chips
   const quickAddAmounts = [5, 10, 15, 20];
-  const addQuickAmount = (add) => {
+  const addQuickAmount = (add: number) => {
     const current = parseFloat(proposedAmount) || (task?.budget ?? 0);
     const newAmount = current + add;
     setProposedAmount(newAmount.toString());
@@ -439,7 +442,7 @@ const TaskDetailsScreen = ({ navigation, route }) => {
   };
 
   // Custom marker (unchanged)
-  const CustomMarker = ({ type, label }) => (
+  const CustomMarker = ({ type, label }: { type: 'user' | 'origin' | 'destination'; label?: string }) => (
     <View style={styles.customMarker}>
       <View style={[
         styles.markerContainer,

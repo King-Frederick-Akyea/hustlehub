@@ -15,8 +15,9 @@ import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { useAuth } from '../../context/AuthContext';
 import { parseApiError } from '../../api/errors';
+import type { ScreenProps } from '../../navigation/types';
 
-const EmailVerificationScreen = ({ navigation }) => {
+const EmailVerificationScreen = ({ navigation }: ScreenProps<'EmailVerification'>) => {
   const insets = useSafeAreaInsets();
   const { user, verifyEmail, resendVerification } = useAuth();
   const email = user?.email ?? '';
@@ -26,9 +27,9 @@ const EmailVerificationScreen = ({ navigation }) => {
   const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
   const [resendMessage, setResendMessage] = useState('');
-  const inputRefs = useRef([]);
+  const inputRefs = useRef<Array<TextInput | null>>([]);
 
-  const handleOtpChange = (value, index) => {
+  const handleOtpChange = (value: string, index: number) => {
     if (value.length > 1) {
       const pastedOtp = value.slice(0, 6).split('');
       const newOtp = [...otp];
@@ -44,14 +45,14 @@ const EmailVerificationScreen = ({ navigation }) => {
       const newOtp = [...otp];
       newOtp[index] = value;
       setOtp(newOtp);
-      
+
       if (value && index < 5) {
         inputRefs.current[index + 1]?.focus();
       }
     }
   };
 
-  const handleKeyPress = (e, index) => {
+  const handleKeyPress = (e: { nativeEvent: { key: string } }, index: number) => {
     if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }

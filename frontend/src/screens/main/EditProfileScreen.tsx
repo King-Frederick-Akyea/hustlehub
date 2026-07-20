@@ -20,10 +20,11 @@ import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { useAuth } from '../../context/AuthContext';
 import { parseApiError } from '../../api/errors';
+import type { ScreenProps } from '../../navigation/types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-const EditProfileScreen = ({ navigation }) => {
+const EditProfileScreen = ({ navigation }: ScreenProps<'EditProfile'>) => {
   const insets = useSafeAreaInsets();
   const { user, updateProfile, uploadAvatar } = useAuth();
   const [name, setName] = useState(user?.fullName ?? '');

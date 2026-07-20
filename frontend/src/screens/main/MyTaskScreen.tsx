@@ -17,6 +17,7 @@ import { useRole } from '../../context/RoleContext';
 import { getMyTasks, TaskItem } from '../../services/taskService';
 import { taskDetailRoute } from '../../utils/taskDisplay';
 import { Loading } from '../../components/Shared';
+import type { ScreenProps } from '../../navigation/types';
 
 const STATUS_DISPLAY: Record<string, { label: string; color: string }> = {
   open: { label: 'Open', color: colors.primary },
@@ -28,7 +29,7 @@ const STATUS_DISPLAY: Record<string, { label: string; color: string }> = {
   disputed: { label: 'Disputed', color: colors.error },
 };
 
-const MyTasksScreen = ({ navigation }) => {
+const MyTasksScreen = ({ navigation }: ScreenProps<'MyTasksScreen'>) => {
   const insets = useSafeAreaInsets();
   const { currentRole } = useRole();
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');

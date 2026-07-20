@@ -18,8 +18,9 @@ import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { useAuth } from '../../context/AuthContext';
 import { parseApiError } from '../../api/errors';
+import type { ScreenProps } from '../../navigation/types';
 
-const FaceVerificationScreen = ({ navigation }) => {
+const FaceVerificationScreen = ({ navigation }: ScreenProps<'FaceVerification'>) => {
   const insets = useSafeAreaInsets();
   const { uploadFacePhoto } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
@@ -79,7 +80,7 @@ const FaceVerificationScreen = ({ navigation }) => {
     ]).start();
   };
 
-  const animateModalOut = (callback) => {
+  const animateModalOut = (callback?: () => void) => {
     Animated.parallel([
       Animated.timing(modalScale, {
         toValue: 0.8,

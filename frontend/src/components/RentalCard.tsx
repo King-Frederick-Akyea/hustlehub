@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ImageStyle } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ImageStyle, StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { spacing, borderRadius, shadows } from '../constants/spacing';
@@ -7,13 +7,35 @@ import { typography } from '../constants/typography';
 import Avatar from './Avatar';
 import Badge, { BadgeVariant } from './Badge';
 
+interface RentalCardItem {
+  title: string;
+  description?: string;
+  category?: string;
+  images?: string[];
+  pricePerDay?: number;
+  pricePerWeek?: number;
+  location?: string;
+  status: string;
+  owner?: { name?: string; avatar?: string; verified?: boolean };
+  bidCount?: number;
+  condition?: string;
+}
+
+interface RentalCardProps {
+  item: RentalCardItem;
+  onPress?: () => void;
+  showOwner?: boolean;
+  horizontal?: boolean;
+  style?: StyleProp<ViewStyle>;
+}
+
 const RentalCard = ({
   item,
   onPress,
   showOwner = true,
   horizontal = false,
   style,
-}) => {
+}: RentalCardProps) => {
   const {
     title,
     description,

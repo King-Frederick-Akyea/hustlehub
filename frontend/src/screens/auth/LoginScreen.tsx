@@ -16,8 +16,9 @@ import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { useAuth } from '../../context/AuthContext';
 import { parseApiError } from '../../api/errors';
+import type { ScreenProps } from '../../navigation/types';
 
-const LoginScreen = ({ navigation }) => {
+const LoginScreen = ({ navigation }: ScreenProps<'Login'>) => {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
   const [email, setEmail] = useState('');

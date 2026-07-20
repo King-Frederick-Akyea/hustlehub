@@ -27,11 +27,24 @@ import { typography } from '../../constants/typography';
 import { TASK_CATEGORIES } from '../../constants';
 import { createTask } from '../../services/taskService';
 import { parseApiError } from '../../api/errors';
+import type { ScreenProps } from '../../navigation/types';
 
 const { height } = Dimensions.get('window');
 
 // Delivery-style categories need a separate pickup + dropoff location instead of one location.
 const CATEGORIES_REQUIRING_TWO_LOCATIONS = ['delivery', 'moving'];
+
+type TaskCategory = (typeof TASK_CATEGORIES)[number];
+type LocationField = 'main' | 'pickup' | 'dropoff';
+
+interface LocationSuggestion {
+  placeId: string | number;
+  description: string;
+  mainText: string;
+  secondaryText: string;
+  lat: number;
+  lon: number;
+}
 
 const STEPS = [
   { id: 0, title: 'What do you need?', subtitle: 'Choose a category' },
@@ -41,6 +54,22 @@ const STEPS = [
   { id: 4, title: 'Budget', subtitle: 'Set your price' },
   { id: 5, title: 'Review & post', subtitle: 'Check everything is correct' },
 ];
+
+interface LocationInputRowProps {
+  label: string;
+  value: string;
+  onChangeText: (text: string, field: LocationField) => void;
+  placeholder: string;
+  field: LocationField;
+  activeField: string;
+  onFocusField: (field: LocationField, currentValue: string) => void;
+  onBlurField: (field: LocationField) => void;
+  suggestions: LocationSuggestion[];
+  onSelectSuggestion: (item: LocationSuggestion, field: LocationField) => void;
+  isSearchingLocation: boolean;
+  isGettingLocation: boolean;
+  onUseCurrentLocation: (field: LocationField) => void;
+}
 
 // --- Location Input Row ---
 const LocationInputRow = ({
@@ -57,9 +86,9 @@ const LocationInputRow = ({
   isSearchingLocation,
   isGettingLocation,
   onUseCurrentLocation,
-}) => {
+}: LocationInputRowProps) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const blurTimeout = useRef(null);
+  const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleFocus = () => {
     if (blurTimeout.current) {
@@ -78,7 +107,7 @@ const LocationInputRow = ({
     }, 300);
   };
 
-  const handleSuggestionPress = (item) => {
+  const handleSuggestionPress = (item: LocationSuggestion) => {
     if (blurTimeout.current) {
       clearTimeout(blurTimeout.current);
       blurTimeout.current = null;
@@ -128,7 +157,7 @@ const LocationInputRow = ({
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
           >
-            {suggestions.map((item) => (
+            {suggestions.map((item: LocationSuggestion) => (
               <TouchableOpacity
                 key={item.placeId?.toString() || item.description}
                 style={styles.suggestionItem}
@@ -162,23 +191,23 @@ const LocationInputRow = ({
   );
 };
 
-const PostTaskScreen = ({ navigation }) => {
+const PostTaskScreen = ({ navigation }: ScreenProps<'CreateTask'>) => {
   const insets = useSafeAreaInsets();
 
-  const [category, setCategory] = useState(null);
+  const [category, setCategory] = useState<TaskCategory | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState(new Date());
   const [dueTime, setDueTime] = useState(new Date());
   const [location, setLocation] = useState('');
-  const [locationLat, setLocationLat] = useState(null);
-  const [locationLng, setLocationLng] = useState(null);
+  const [locationLat, setLocationLat] = useState<number | null>(null);
+  const [locationLng, setLocationLng] = useState<number | null>(null);
   const [pickupLocation, setPickupLocation] = useState('');
-  const [pickupLat, setPickupLat] = useState(null);
-  const [pickupLng, setPickupLng] = useState(null);
+  const [pickupLat, setPickupLat] = useState<number | null>(null);
+  const [pickupLng, setPickupLng] = useState<number | null>(null);
   const [dropoffLocation, setDropoffLocation] = useState('');
-  const [dropoffLat, setDropoffLat] = useState(null);
-  const [dropoffLng, setDropoffLng] = useState(null);
+  const [dropoffLat, setDropoffLat] = useState<number | null>(null);
+  const [dropoffLng, setDropoffLng] = useState<number | null>(null);
   const [budget, setBudget] = useState('');
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -186,12 +215,12 @@ const PostTaskScreen = ({ navigation }) => {
   const [postError, setPostError] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [activeField, setActiveField] = useState('');
+  const [activeField, setActiveField] = useState<LocationField | ''>('');
   const [successModalVisible, setSuccessModalVisible] = useState(false);
-  const searchTimeout = useRef(null);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -206,7 +235,7 @@ const PostTaskScreen = ({ navigation }) => {
 
   const isInsufficientBalanceError = postError.toLowerCase().includes('insufficient wallet balance');
 
-  const changeStep = (newStep) => {
+  const changeStep = (newStep: number) => {
     if (newStep < 0 || newStep >= totalSteps) return;
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
@@ -314,13 +343,13 @@ const PostTaskScreen = ({ navigation }) => {
     }
   };
 
-  const formatDate = (date) =>
+  const formatDate = (date: Date) =>
     date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const formatTime = (date) =>
+  const formatTime = (date: Date) =>
     date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
   // --- Location Search ---
-  const searchLocations = useCallback(async (query, field) => {
+  const searchLocations = useCallback(async (query: string, field: LocationField) => {
     if (query.length < 3) {
       setLocationSuggestions([]);
       return;
@@ -336,7 +365,7 @@ const PostTaskScreen = ({ navigation }) => {
       );
       const data = await response.json();
       if (data && data.length > 0) {
-        const suggestions = data.map((place) => ({
+        const suggestions = data.map((place: any) => ({
           placeId: place.place_id,
           description: place.display_name,
           mainText: place.display_name.split(',')[0] || place.name,
@@ -370,7 +399,7 @@ const PostTaskScreen = ({ navigation }) => {
   }, []);
 
   const handleLocationChange = useCallback(
-    (text, field) => {
+    (text: string, field: LocationField) => {
       // Manual typing invalidates any previously-selected coordinates for this field.
       if (field === 'main') { setLocation(text); setLocationLat(null); setLocationLng(null); }
       else if (field === 'pickup') { setPickupLocation(text); setPickupLat(null); setPickupLng(null); }
@@ -385,20 +414,20 @@ const PostTaskScreen = ({ navigation }) => {
   );
 
   const handleFocusField = useCallback(
-    (field, currentValue) => {
+    (field: LocationField, currentValue: string) => {
       setActiveField(field);
       if (currentValue && currentValue.length >= 3) searchLocations(currentValue, field);
     },
     [searchLocations]
   );
 
-  const handleBlurField = useCallback((field) => {
+  const handleBlurField = useCallback((field: LocationField) => {
     setTimeout(() => {
       setActiveField((prev) => (prev === field ? '' : prev));
     }, 350);
   }, []);
 
-  const selectSuggestion = useCallback((item, field) => {
+  const selectSuggestion = useCallback((item: LocationSuggestion, field: LocationField) => {
     const address = item.description;
     if (field === 'main') { setLocation(address); setLocationLat(item.lat); setLocationLng(item.lon); }
     else if (field === 'pickup') { setPickupLocation(address); setPickupLat(item.lat); setPickupLng(item.lon); }
@@ -408,7 +437,7 @@ const PostTaskScreen = ({ navigation }) => {
     Keyboard.dismiss();
   }, []);
 
-  const getCurrentLocation = useCallback(async (field) => {
+  const getCurrentLocation = useCallback(async (field: LocationField) => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
       alert('Permission to access location was denied');
@@ -438,7 +467,7 @@ const PostTaskScreen = ({ navigation }) => {
   }, []);
 
   // --- Render steps ---
-  const renderStepContent = (step) => {
+  const renderStepContent = (step: number) => {
     switch (step) {
       case 0:
         return (

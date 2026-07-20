@@ -16,8 +16,9 @@ import { getListings, ListingItem } from '../../services/rentalService';
 import { formatRelativeTime, resolveAvatarUrl } from '../../utils/taskDisplay';
 import { Loading } from '../../components/Shared';
 import Avatar from '../../components/Avatar';
+import type { ScreenProps } from '../../navigation/types';
 
-const RentalsScreen = ({ navigation }) => {
+const RentalsScreen = ({ navigation }: ScreenProps<'Rentals'>) => {
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState('all');
   const [listings, setListings] = useState<ListingItem[]>([]);

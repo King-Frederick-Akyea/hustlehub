@@ -11,8 +11,9 @@ import { Loading } from '../components/Shared';
 import { useAuth } from '../context/AuthContext';
 import { navigationRef } from './navigationRef';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import type { RootStackParamList } from './types';
 
-const Stack = createStackNavigator();
+const Stack = createStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);

@@ -28,6 +28,7 @@ import {
 import { parseApiError } from '../../api/errors';
 import { Loading } from '../../components/Shared';
 import Avatar from '../../components/Avatar';
+import type { ScreenProps } from '../../navigation/types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 const POLL_INTERVAL_MS = 3500;
@@ -36,7 +37,7 @@ function formatMessageTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-const ChatDetailScreen = ({ navigation, route }) => {
+const ChatDetailScreen = ({ navigation, route }: ScreenProps<'ChatDetail'>) => {
   const insets = useSafeAreaInsets();
   const conversationId: string | undefined = route.params?.conversationId;
 

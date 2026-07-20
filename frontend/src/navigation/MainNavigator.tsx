@@ -17,8 +17,9 @@ import {
   CreateListingScreen,
   ListingDetailsScreen,
 } from '../screens/main';
+import type { RootStackParamList } from './types';
 
-const Stack = createStackNavigator();
+const Stack = createStackNavigator<RootStackParamList>();
 
 const MainNavigator = () => {
   return (

@@ -18,8 +18,9 @@ import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { useAuth } from '../../context/AuthContext';
 import { parseApiError } from '../../api/errors';
+import type { ScreenProps } from '../../navigation/types';
 
-const StudentIDUploadScreen = ({ navigation }) => {
+const StudentIDUploadScreen = ({ navigation }: ScreenProps<'StudentIDUpload'>) => {
   const insets = useSafeAreaInsets();
   const { uploadStudentId } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
@@ -58,7 +59,7 @@ const StudentIDUploadScreen = ({ navigation }) => {
     ]).start();
   };
 
-  const animateModalOut = (callback) => {
+  const animateModalOut = (callback: () => void) => {
     Animated.parallel([
       Animated.timing(modalScale, {
         toValue: 0.8,
