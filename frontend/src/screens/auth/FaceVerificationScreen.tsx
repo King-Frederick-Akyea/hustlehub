@@ -17,12 +17,14 @@ import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { useAuth } from '../../context/AuthContext';
+import { useSafeGoBack } from '../../hooks/useSafeGoBack';
 import { parseApiError } from '../../api/errors';
 import type { ScreenProps } from '../../navigation/types';
 
 const FaceVerificationScreen = ({ navigation }: ScreenProps<'FaceVerification'>) => {
   const insets = useSafeAreaInsets();
   const { uploadFacePhoto } = useAuth();
+  const handleBack = useSafeGoBack(navigation);
   const [permission, requestPermission] = useCameraPermissions();
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -105,7 +107,7 @@ const FaceVerificationScreen = ({ navigation }: ScreenProps<'FaceVerification'>)
   const handleDenyCamera = () => {
     animateModalOut(() => {
       setShowPermissionModal(false);
-      navigation.goBack();
+      handleBack();
     });
   };
 
@@ -204,7 +206,7 @@ const FaceVerificationScreen = ({ navigation }: ScreenProps<'FaceVerification'>)
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleBack}
         >
           <Ionicons name="arrow-back" size={24} color={colors.textInverse} />
         </TouchableOpacity>

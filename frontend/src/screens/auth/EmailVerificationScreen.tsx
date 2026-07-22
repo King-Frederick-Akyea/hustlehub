@@ -14,12 +14,14 @@ import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { useAuth } from '../../context/AuthContext';
+import { useSafeGoBack } from '../../hooks/useSafeGoBack';
 import { parseApiError } from '../../api/errors';
 import type { ScreenProps } from '../../navigation/types';
 
 const EmailVerificationScreen = ({ navigation }: ScreenProps<'EmailVerification'>) => {
   const insets = useSafeAreaInsets();
   const { user, verifyEmail, resendVerification } = useAuth();
+  const handleBack = useSafeGoBack(navigation);
   const email = user?.email ?? '';
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -94,7 +96,7 @@ const EmailVerificationScreen = ({ navigation }: ScreenProps<'EmailVerification'
         {/* Back Button */}
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleBack}
         >
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>

@@ -17,12 +17,14 @@ import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { useAuth } from '../../context/AuthContext';
+import { useSafeGoBack } from '../../hooks/useSafeGoBack';
 import { parseApiError } from '../../api/errors';
 import type { ScreenProps } from '../../navigation/types';
 
 const StudentIDUploadScreen = ({ navigation }: ScreenProps<'StudentIDUpload'>) => {
   const insets = useSafeAreaInsets();
   const { uploadStudentId } = useAuth();
+  const handleBack = useSafeGoBack(navigation);
   const [permission, requestPermission] = useCameraPermissions();
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -84,7 +86,7 @@ const StudentIDUploadScreen = ({ navigation }: ScreenProps<'StudentIDUpload'>) =
   const handleDenyCamera = () => {
     animateModalOut(() => {
       setShowPermissionModal(false);
-      navigation.goBack();
+      handleBack();
     });
   };
 
@@ -182,7 +184,7 @@ const StudentIDUploadScreen = ({ navigation }: ScreenProps<'StudentIDUpload'>) =
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleBack}
         >
           <Ionicons name="arrow-back" size={24} color={colors.textInverse} />
         </TouchableOpacity>
