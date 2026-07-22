@@ -65,9 +65,17 @@ public class NotificationSendService {
         List<ExpoPushClient.ExpoPushTicket> tickets =
                 expoPushClient.send(tokenValues, request.title(), request.body(), data);
 
+        // Expo's immediate response only confirms it *accepted* the message for delivery, not that
+        // the OS actually delivered it - but an "error" ticket here (bad credentials, malformed
+        // token, rate limit, etc.) means it never even got that far, and previously this was
+        // silently discarded, making every non-DeviceNotRegistered failure invisible.
         for (int i = 0; i < tickets.size() && i < tokenValues.size(); i++) {
-            if (tickets.get(i).isDeviceNotRegistered()) {
+            ExpoPushClient.ExpoPushTicket ticket = tickets.get(i);
+            if (ticket.isDeviceNotRegistered()) {
                 deviceTokenRepository.deleteByExpoPushToken(tokenValues.get(i));
+            } else if (!"ok".equals(ticket.status())) {
+                log.warn("Expo push rejected for user {} (type {}): status={} message={} details={}",
+                        request.userId(), request.type(), ticket.status(), ticket.message(), ticket.details());
             }
         }
     }
