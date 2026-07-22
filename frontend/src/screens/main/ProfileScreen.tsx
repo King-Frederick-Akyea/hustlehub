@@ -10,10 +10,12 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
+import { links } from '../../constants/links';
 import { useRole } from '../../context/RoleContext';
 import { useAuth } from '../../context/AuthContext';
 import Avatar from '../../components/Avatar';
@@ -189,9 +191,21 @@ const ProfileScreen = ({ navigation }: ScreenProps<'ProfileTab'>) => {
             label="Saved Tasks"
             onPress={() => navigation.navigate('Bookmarks')}
           />
-          <MenuItem icon="lock-closed-outline" label="Privacy & Security" />
-          <MenuItem icon="help-circle-outline" label="Help Center" />
-          <MenuItem icon="document-text-outline" label="Terms of Service" />
+          <MenuItem
+            icon="lock-closed-outline"
+            label="Privacy & Security"
+            onPress={() => WebBrowser.openBrowserAsync(links.privacy)}
+          />
+          <MenuItem
+            icon="help-circle-outline"
+            label="Help Center"
+            onPress={() => WebBrowser.openBrowserAsync(links.help)}
+          />
+          <MenuItem
+            icon="document-text-outline"
+            label="Terms of Service"
+            onPress={() => WebBrowser.openBrowserAsync(links.terms)}
+          />
           <View style={styles.menuSpacer} />
           <MenuItem icon="log-out-outline" label="Log Out" danger onPress={handleLogout} />
         </View>

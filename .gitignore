@@ -17,3 +17,5 @@ services/*/src/main/resources/application-local.properties
 services/.env.properties
 services/.mvn/wrapper/maven-wrapper.jar
 services/*/.mvn/wrapper/maven-wrapper.jar
+
+hustlehub_video

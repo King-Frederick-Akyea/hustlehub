@@ -8,10 +8,12 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
+import { links } from '../../constants/links';
 import type { ScreenProps } from '../../navigation/types';
 
 const { width, height } = Dimensions.get('window');
@@ -124,8 +126,19 @@ const WelcomeScreen = ({ navigation }: ScreenProps<'Welcome'>) => {
 
         <Text style={styles.footerText}>
           By continuing, you agree to our{' '}
-          <Text style={styles.linkText}>Terms</Text> &{' '}
-          <Text style={styles.linkText}>Privacy Policy</Text>
+          <Text
+            style={styles.linkText}
+            onPress={() => WebBrowser.openBrowserAsync(links.terms)}
+          >
+            Terms
+          </Text>{' '}
+          &{' '}
+          <Text
+            style={styles.linkText}
+            onPress={() => WebBrowser.openBrowserAsync(links.privacy)}
+          >
+            Privacy Policy
+          </Text>
         </Text>
       </Animated.View>
     </View>

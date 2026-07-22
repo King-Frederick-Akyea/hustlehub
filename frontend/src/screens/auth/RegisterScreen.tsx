@@ -11,10 +11,12 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
+import { links } from '../../constants/links';
 import { useAuth } from '../../context/AuthContext';
 import { parseApiError } from '../../api/errors';
 import type { ScreenProps } from '../../navigation/types';
@@ -203,8 +205,19 @@ const RegisterScreen = ({ navigation }: ScreenProps<'Register'>) => {
 
           <Text style={styles.termsText}>
             By signing up, you agree to our{' '}
-            <Text style={styles.termsLink}>Terms</Text> and{' '}
-            <Text style={styles.termsLink}>Privacy Policy</Text>
+            <Text
+              style={styles.termsLink}
+              onPress={() => WebBrowser.openBrowserAsync(links.terms)}
+            >
+              Terms
+            </Text>{' '}
+            and{' '}
+            <Text
+              style={styles.termsLink}
+              onPress={() => WebBrowser.openBrowserAsync(links.privacy)}
+            >
+              Privacy Policy
+            </Text>
           </Text>
 
           <TouchableOpacity
