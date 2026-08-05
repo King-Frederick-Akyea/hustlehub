@@ -10,14 +10,12 @@ import {
   PanResponder,
   ScrollView,
   StatusBar,
-  Platform,
   Modal,
   TextInput,
   TouchableWithoutFeedback,
   Keyboard,
   Share,
 } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,6 +42,8 @@ import {
 import { Loading } from '../../components/Shared';
 import Avatar from '../../components/Avatar';
 import Badge from '../../components/Badge';
+import TaskLocationMap from '../../components/TaskLocationMap';
+import type { TaskLocationMapHandle } from '../../components/TaskLocationMap.types';
 import type { ScreenProps } from '../../navigation/types';
 
 const { width, height } = Dimensions.get('window');
@@ -54,9 +54,6 @@ const SHEET_MID_HEIGHT = height * 0.58;
 const SHEET_MAX_HEIGHT = height * 0.85;
 
 type LatLng = { latitude: number; longitude: number };
-
-// Modern map style
-const mapStyle: any[] = [];
 
 const defaultOrigin = { latitude: 5.6520, longitude: -0.1870 };
 const defaultDestination = { latitude: 5.6580, longitude: -0.1920 };
@@ -70,7 +67,7 @@ const BID_STATUS_BADGE: Record<string, { label: string; variant: any }> = {
 
 const TaskDetailsScreen = ({ navigation, route }: ScreenProps<'TaskDetails'>) => {
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<TaskLocationMapHandle>(null);
   const scrollViewRef = useRef(null);
   const { user } = useAuth();
 
@@ -269,8 +266,7 @@ const TaskDetailsScreen = ({ navigation, route }: ScreenProps<'TaskDetails'>) =>
       ];
       setTimeout(() => {
         mapRef.current?.fitToCoordinates(coordinates, {
-          edgePadding: { top: 100, right: 50, bottom: SHEET_MIN_HEIGHT + 50, left: 50 },
-          animated: true,
+          top: 100, right: 50, bottom: SHEET_MIN_HEIGHT + 50, left: 50,
         });
       }, 500);
     }
@@ -441,29 +437,6 @@ const TaskDetailsScreen = ({ navigation, route }: ScreenProps<'TaskDetails'>) =>
     setAlertModalVisible(false);
   };
 
-  // Custom marker (unchanged)
-  const CustomMarker = ({ type, label }: { type: 'user' | 'origin' | 'destination'; label?: string }) => (
-    <View style={styles.customMarker}>
-      <View style={[
-        styles.markerContainer,
-        type === 'user' && styles.markerUser,
-        type === 'origin' && styles.markerOrigin,
-        type === 'destination' && styles.markerDestination,
-      ]}>
-        <Ionicons
-          name={type === 'user' ? 'person' : type === 'origin' ? 'location' : 'flag'}
-          size={18}
-          color="#FFFFFF"
-        />
-      </View>
-      {label && (
-        <View style={styles.markerLabel}>
-          <Text style={styles.markerLabelText}>{label}</Text>
-        </View>
-      )}
-    </View>
-  );
-
   if (loadingTask && !task) {
     return (
       <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
@@ -491,51 +464,14 @@ const TaskDetailsScreen = ({ navigation, route }: ScreenProps<'TaskDetails'>) =>
 
       {/* Map */}
       <View style={styles.mapContainer}>
-        <MapView
+        <TaskLocationMap
           ref={mapRef}
-          style={StyleSheet.absoluteFillObject}
-          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          customMapStyle={mapStyle}
-          initialRegion={{
-            latitude: origin.latitude,
-            longitude: origin.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          }}
-          showsUserLocation={false}
-          showsMyLocationButton={false}
-          showsCompass={false}
-        >
-          {userLocation && (
-            <Marker coordinate={userLocation} anchor={{ x: 0.5, y: 1 }}>
-              <CustomMarker type="user" label="You" />
-            </Marker>
-          )}
-          <Marker coordinate={origin} anchor={{ x: 0.5, y: 1 }}>
-            <CustomMarker type="origin" label={task.isDelivery ? 'Pickup' : 'Task'} />
-          </Marker>
-          {task.isDelivery && (
-            <Marker coordinate={destination} anchor={{ x: 0.5, y: 1 }}>
-              <CustomMarker type="destination" label="Dropoff" />
-            </Marker>
-          )}
-          {userLocation && routeCoordinates.length > 0 && (
-            <Polyline
-              coordinates={routeCoordinates}
-              strokeColor={colors.primary}
-              strokeWidth={4}
-              lineDashPattern={[1]}
-            />
-          )}
-          {task.isDelivery && (
-            <Polyline
-              coordinates={[origin, destination]}
-              strokeColor="#4CAF50"
-              strokeWidth={4}
-              lineDashPattern={[10, 5]}
-            />
-          )}
-        </MapView>
+          origin={origin}
+          destination={destination}
+          userLocation={userLocation}
+          routeCoordinates={routeCoordinates}
+          isDelivery={task.isDelivery}
+        />
 
         {/* Header & map controls (unchanged) */}
         <View style={[styles.headerOverlay, { paddingTop: insets.top }]}>
@@ -680,7 +616,11 @@ const TaskDetailsScreen = ({ navigation, route }: ScreenProps<'TaskDetails'>) =>
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.posterCard} activeOpacity={isPoster ? 1 : 0.7}>
+          <TouchableOpacity
+            style={styles.posterCard}
+            activeOpacity={isPoster ? 1 : 0.7}
+            onPress={isPoster ? undefined : () => navigation.navigate('UserProfile', { userId: task.poster.id })}
+          >
             <Avatar source={resolveAvatarUrl(task.poster.avatarUrl)} name={task.poster.fullName} size="md" />
             <View style={styles.posterInfo}>
               <Text style={styles.posterName}>{isPoster ? 'You' : task.poster.fullName}</Text>
@@ -717,11 +657,16 @@ const TaskDetailsScreen = ({ navigation, route }: ScreenProps<'TaskDetails'>) =>
                   const badge = BID_STATUS_BADGE[bid.status] ?? { label: bid.status, variant: 'default' };
                   return (
                     <View key={bid.id} style={styles.bidRow}>
-                      <Avatar source={resolveAvatarUrl(bid.tasker.avatarUrl)} name={bid.tasker.fullName} size="sm" />
-                      <View style={styles.bidInfo}>
-                        <Text style={styles.posterName}>{bid.tasker.fullName}</Text>
-                        <Text style={styles.description}>GH₵ {bid.amount}{bid.message ? ` · ${bid.message}` : ''}</Text>
-                      </View>
+                      <TouchableOpacity
+                        style={styles.bidderTouchable}
+                        onPress={() => navigation.navigate('UserProfile', { userId: bid.tasker.id })}
+                      >
+                        <Avatar source={resolveAvatarUrl(bid.tasker.avatarUrl)} name={bid.tasker.fullName} size="sm" />
+                        <View style={styles.bidInfo}>
+                          <Text style={styles.posterName}>{bid.tasker.fullName}</Text>
+                          <Text style={styles.description}>GH₵ {bid.amount}{bid.message ? ` · ${bid.message}` : ''}</Text>
+                        </View>
+                      </TouchableOpacity>
                       <Badge label={badge.label} variant={badge.variant} size="sm" />
                       {bid.status === 'pending' && task.status === 'open' && (
                         <View style={{ flexDirection: 'row', gap: spacing.xs, marginLeft: spacing.sm }}>
@@ -1031,50 +976,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-  customMarker: {
-    alignItems: 'center',
-  },
-  markerContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  markerUser: {
-    backgroundColor: '#2196F3',
-  },
-  markerOrigin: {
-    backgroundColor: colors.primary,
-  },
-  markerDestination: {
-    backgroundColor: '#4CAF50',
-  },
-  markerLabel: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginTop: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  markerLabelText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
   bottomSheet: {
     position: 'absolute',
     left: 0,
@@ -1280,6 +1181,11 @@ const styles = StyleSheet.create({
   bidInfo: {
     flex: 1,
     marginLeft: spacing.sm,
+  },
+  bidderTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   bidIconButton: {
     width: 32,

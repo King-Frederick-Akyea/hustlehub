@@ -11,6 +11,7 @@ export type RootStackParamList = {
   Auth: undefined;
   Verification: undefined;
   Main: undefined;
+  Suspended: undefined;
 
   // Auth stack
   Welcome: undefined;
@@ -40,6 +41,10 @@ export type RootStackParamList = {
   Bookmarks: undefined;
   CreateListing: undefined;
   ListingDetails: { listingId: string };
+  UserProfile: { userId: string };
+  WriteReview: { revieweeId: string; revieweeName: string; relatedType: 'task' | 'rental_offer'; relatedId: string };
+  ReportUser: { reportedUserId: string; reportedUserName: string };
+  ImageViewer: { imageUrl: string; headers?: Record<string, string> };
 
   // Main tabs
   HomeTab: undefined;

@@ -10,10 +10,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  Image,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
@@ -21,6 +25,7 @@ import {
   getConversation,
   getMessages,
   sendMessage as sendMessageRequest,
+  sendImageMessage,
   markAsRead,
   Conversation,
   ChatMessage,
@@ -28,6 +33,7 @@ import {
 import { parseApiError } from '../../api/errors';
 import { Loading } from '../../components/Shared';
 import Avatar from '../../components/Avatar';
+import { getAccessToken } from '../../api/client';
 import type { ScreenProps } from '../../navigation/types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -47,6 +53,7 @@ const ChatDetailScreen = ({ navigation, route }: ScreenProps<'ChatDetail'>) => {
   const [error, setError] = useState('');
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
+  const [sendingImage, setSendingImage] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   useFocusEffect(
@@ -117,15 +124,99 @@ const ChatDetailScreen = ({ navigation, route }: ScreenProps<'ChatDetail'>) => {
     }
   };
 
+  const sendPickedImage = async (uri: string) => {
+    if (!conversationId) return;
+    setSendingImage(true);
+    try {
+      const caption = inputText.trim();
+      const message = await sendImageMessage(conversationId, uri, caption || undefined);
+      setMessages((prev) => [...prev, message]);
+      setInputText('');
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (err) {
+      Alert.alert('Could not send photo', parseApiError(err).message);
+    } finally {
+      setSendingImage(false);
+    }
+  };
+
+  const pickImageFromLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photos to send an image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      await sendPickedImage(result.assets[0].uri);
+    }
+  };
+
+  const takePhotoForMessage = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your camera to send an image.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    if (!result.canceled) {
+      await sendPickedImage(result.assets[0].uri);
+    }
+  };
+
+  const handleAttach = () => {
+    Alert.alert('Send a Photo', 'Choose an option', [
+      { text: 'Take Photo', onPress: takePhotoForMessage },
+      { text: 'Choose from Gallery', onPress: pickImageFromLibrary },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const openImage = (imageUrl: string) => {
+    const token = getAccessToken();
+    navigation.navigate('ImageViewer', {
+      imageUrl,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+  };
+
   const renderItem = ({ item }: { item: ChatMessage }) => {
     const isMe = item.isMine;
+    const token = getAccessToken();
     return (
       <View style={[styles.messageRow, isMe ? styles.messageRowRight : styles.messageRowLeft]}>
-        <View style={[styles.messageBubble, isMe ? styles.messageBubbleMe : styles.messageBubbleOther]}>
-          <Text style={[styles.messageText, isMe ? styles.messageTextMe : styles.messageTextOther]}>
-            {item.text}
+        <View style={[styles.messageBubble, isMe ? styles.messageBubbleMe : styles.messageBubbleOther, item.imageUrl && styles.messageBubbleImage]}>
+          {item.imageUrl && (
+            <TouchableOpacity onPress={() => openImage(item.imageUrl!)} activeOpacity={0.9}>
+              <Image
+                source={{
+                  uri: `${API_URL}${item.imageUrl}`,
+                  headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                }}
+                style={styles.messageImage}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          )}
+          {item.text ? (
+            <Text
+              style={[
+                styles.messageText,
+                isMe ? styles.messageTextMe : styles.messageTextOther,
+                item.imageUrl ? styles.messageCaption : undefined,
+              ]}
+            >
+              {item.text}
+            </Text>
+          ) : null}
+          <Text style={[styles.messageTime, item.imageUrl && !item.text && styles.messageTimeOnImage]}>
+            {formatMessageTime(item.createdAt)}
           </Text>
-          <Text style={styles.messageTime}>{formatMessageTime(item.createdAt)}</Text>
         </View>
       </View>
     );
@@ -140,14 +231,18 @@ const ChatDetailScreen = ({ navigation, route }: ScreenProps<'ChatDetail'>) => {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
+        <TouchableOpacity
+          style={styles.headerCenter}
+          activeOpacity={otherUser ? 0.7 : 1}
+          onPress={() => otherUser && navigation.navigate('UserProfile', { userId: otherUser.id })}
+        >
           <Avatar
             source={otherUser?.avatarUrl ? `${API_URL}${otherUser.avatarUrl}` : undefined}
             name={otherUser?.fullName}
             size="sm"
           />
           <Text style={styles.headerName}>{otherUser?.fullName ?? 'Chat'}</Text>
-        </View>
+        </TouchableOpacity>
         <View style={{ width: 44 }} />
       </View>
 
@@ -177,6 +272,17 @@ const ChatDetailScreen = ({ navigation, route }: ScreenProps<'ChatDetail'>) => {
         style={[styles.inputBar, { paddingBottom: insets.bottom + spacing.sm }]}
       >
         <View style={styles.inputContainer}>
+          <TouchableOpacity
+            style={styles.attachButton}
+            onPress={handleAttach}
+            disabled={sendingImage || !conversationId}
+          >
+            {sendingImage ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons name="camera-outline" size={22} color={colors.primary} />
+            )}
+          </TouchableOpacity>
           <TextInput
             style={styles.textInput}
             placeholder="Type a message..."
@@ -257,6 +363,23 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderTopLeftRadius: 4,
   },
+  messageBubbleImage: {
+    padding: 6,
+  },
+  messageImage: {
+    width: 220,
+    height: 220,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  messageCaption: {
+    marginTop: spacing.sm,
+    marginHorizontal: spacing.xs,
+  },
+  messageTimeOnImage: {
+    marginHorizontal: spacing.xs,
+    marginTop: 4,
+  },
   messageBubbleOther: {
     backgroundColor: colors.surfaceSecondary,
     borderTopLeftRadius: 0,
@@ -313,6 +436,14 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.5,
+  },
+  attachButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

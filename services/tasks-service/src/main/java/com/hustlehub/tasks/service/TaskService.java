@@ -3,8 +3,11 @@ package com.hustlehub.tasks.service;
 import com.hustlehub.common.client.NotificationsServiceClient;
 import com.hustlehub.common.client.PaymentsServiceClient;
 import com.hustlehub.common.client.UserServiceClient;
+import com.hustlehub.common.dto.CompletedEngagementResponse;
+import com.hustlehub.common.dto.EngagementParticipantsResponse;
 import com.hustlehub.common.dto.NotificationType;
 import com.hustlehub.common.dto.TransferResult;
+import com.hustlehub.common.dto.UserStatsResponse;
 import com.hustlehub.common.dto.UserSummaryResponse;
 import com.hustlehub.common.exception.ForbiddenActionException;
 import com.hustlehub.common.exception.InvalidRequestException;
@@ -26,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -226,5 +230,48 @@ public class TaskService {
 
     private UserSummaryResponse resolveAssignedTasker(Task task, Map<UUID, UserSummaryResponse> summaries) {
         return task.getAssignedTaskerId() == null ? null : summaries.get(task.getAssignedTaskerId());
+    }
+
+    /** For identity-service's public/own profile response — completed jobs as tasker + what they earned. */
+    public UserStatsResponse getStats(UUID taskerId) {
+        long completedCount = taskRepository.countByAssignedTaskerIdAndStatus(taskerId, TaskStatus.COMPLETED);
+        BigDecimal totalEarnings = taskRepository.sumFinalPriceByAssignedTaskerAndStatus(taskerId, TaskStatus.COMPLETED);
+        return new UserStatsResponse(completedCount, totalEarnings);
+    }
+
+    /** For reviews-service's "eligible to review" list — every completed task this user was either side of. */
+    public List<CompletedEngagementResponse> getCompletedEngagements(UUID userId) {
+        List<CompletedEngagementResponse> engagements = new ArrayList<>();
+        for (Task task : taskRepository.findByPosterIdAndStatus(userId, TaskStatus.COMPLETED)) {
+            engagements.add(new CompletedEngagementResponse("TASK", task.getId(), task.getAssignedTaskerId(), task.getCompletedAt()));
+        }
+        for (Task task : taskRepository.findByAssignedTaskerIdAndStatus(userId, TaskStatus.COMPLETED)) {
+            engagements.add(new CompletedEngagementResponse("TASK", task.getId(), task.getPosterId(), task.getCompletedAt()));
+        }
+        return engagements;
+    }
+
+    /**
+     * Admin-suspend cleanup: cancels (with escrow refund) every OPEN task this user posted, same
+     * lifecycle transition as a self-service cancelTask, just triggered by an admin action instead
+     * of the poster. Tasks already IN_PROGRESS/COMPLETED are untouched — those involve another
+     * user who shouldn't be penalized by this poster's suspension.
+     */
+    @Transactional
+    public void suspendCleanup(UUID posterId) {
+        for (Task task : taskRepository.findByPosterIdAndStatus(posterId, TaskStatus.OPEN)) {
+            task.setStatus(TaskStatus.CANCELLED);
+            taskRepository.save(task);
+            paymentsServiceClient.refundHold(task.getId());
+        }
+    }
+
+    /** For reviews-service's server-side review-eligibility re-validation. Empty if the task was never assigned (no real engagement to review). */
+    public Optional<EngagementParticipantsResponse> getParticipants(UUID taskId) {
+        Task task = taskRepository.findById(taskId).orElse(null);
+        if (task == null || task.getAssignedTaskerId() == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new EngagementParticipantsResponse(task.getPosterId(), task.getAssignedTaskerId(), task.getStatus() == TaskStatus.COMPLETED));
     }
 }

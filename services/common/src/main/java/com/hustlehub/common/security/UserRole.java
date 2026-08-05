@@ -6,7 +6,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum UserRole {
     POSTER,
     TASKER,
-    BOTH;
+    BOTH,
+    /** Not a student account - minted only by AdminAuthController's hardcoded-credential login, never persisted as a User row. */
+    ADMIN;
 
     @JsonValue
     public String toJson() {

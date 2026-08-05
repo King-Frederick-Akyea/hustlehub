@@ -24,6 +24,12 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     @Query("select coalesce(sum(t.finalPrice), 0) from Task t where t.assignedTaskerId = :taskerId and t.status = :status")
     BigDecimal sumFinalPriceByAssignedTaskerAndStatus(@Param("taskerId") UUID taskerId, @Param("status") TaskStatus status);
 
+    // Used to build the reviews-service "eligible to review" list — every completed task this
+    // user was either side of (poster or tasker).
+    List<Task> findByPosterIdAndStatus(UUID posterId, TaskStatus status);
+
+    List<Task> findByAssignedTaskerIdAndStatus(UUID assignedTaskerId, TaskStatus status);
+
     // Category/search filtering happens in TaskService (in-memory) rather than as optional JPQL
     // parameters here — binding a null String/enum through "(:x is null or ...)" tripped Postgres's
     // JDBC type inference (it guessed `bytea` for the untyped null, e.g. "function lower(bytea) does

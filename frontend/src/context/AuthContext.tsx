@@ -19,7 +19,13 @@ interface AuthContextValue {
   resendVerification: () => Promise<ResendVerificationResult>;
   uploadStudentId: (uri: string) => Promise<void>;
   uploadFacePhoto: (uri: string) => Promise<void>;
-  updateProfile: (data: { fullName?: string; bio?: string }) => Promise<void>;
+  updateProfile: (data: {
+    fullName?: string;
+    bio?: string;
+    phoneNumber?: string;
+    availability?: string;
+    specializations?: string[];
+  }) => Promise<void>;
   uploadAvatar: (uri: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<ForgotPasswordResult>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
@@ -111,7 +117,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(updated);
   }, []);
 
-  const updateProfile = useCallback(async (data: { fullName?: string; bio?: string }) => {
+  const updateProfile = useCallback(async (data: {
+    fullName?: string;
+    bio?: string;
+    phoneNumber?: string;
+    availability?: string;
+    specializations?: string[];
+  }) => {
     const updated = await authService.updateProfile(data);
     setUser(updated);
   }, []);

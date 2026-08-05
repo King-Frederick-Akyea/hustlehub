@@ -12,6 +12,7 @@ import com.hustlehub.rentals.entity.ListingOffer;
 import com.hustlehub.rentals.entity.ListingStatus;
 import com.hustlehub.rentals.entity.ListingType;
 import com.hustlehub.rentals.entity.OfferStatus;
+import com.hustlehub.rentals.repository.ListingImageRepository;
 import com.hustlehub.rentals.repository.ListingOfferRepository;
 import com.hustlehub.rentals.repository.ListingRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class ListingService {
 
     private final ListingRepository listingRepository;
     private final ListingOfferRepository listingOfferRepository;
+    private final ListingImageRepository listingImageRepository;
     private final UserServiceClient userServiceClient;
 
     @Transactional
@@ -69,7 +71,7 @@ public class ListingService {
 
         Listing saved = listingRepository.save(listing.build());
         UserSummaryResponse owner = resolveRequiredSummary(ownerId);
-        return ListingResponse.from(saved, owner, 0, null, null);
+        return ListingResponse.from(saved, owner, 0, null, null, List.of());
     }
 
     public List<ListingResponse> getActiveListings(UUID currentUserId, String typeFilter) {
@@ -86,7 +88,8 @@ public class ListingService {
                     return ListingResponse.from(listing, summaries.get(listing.getOwnerId()),
                             listingOfferRepository.countByListing(listing),
                             myOffer.map(o -> o.getStatus().toJson()).orElse(null),
-                            myOffer.map(ListingOffer::getId).orElse(null));
+                            myOffer.map(ListingOffer::getId).orElse(null),
+                            ListingImageService.urlsFor(listingImageRepository, listing));
                 })
                 .toList();
     }
@@ -97,7 +100,8 @@ public class ListingService {
         List<Listing> listings = listingRepository.findByOwnerIdOrderByCreatedAtDesc(ownerId);
         UserSummaryResponse owner = resolveRequiredSummary(ownerId);
         return listings.stream()
-                .map(listing -> ListingResponse.from(listing, owner, listingOfferRepository.countByListing(listing), null, null))
+                .map(listing -> ListingResponse.from(listing, owner, listingOfferRepository.countByListing(listing), null, null,
+                        ListingImageService.urlsFor(listingImageRepository, listing)))
                 .toList();
     }
 
@@ -107,7 +111,8 @@ public class ListingService {
         Optional<ListingOffer> myOffer = myActiveOffer(listing, currentUserId);
         return ListingResponse.from(listing, owner, listingOfferRepository.countByListing(listing),
                 myOffer.map(o -> o.getStatus().toJson()).orElse(null),
-                myOffer.map(ListingOffer::getId).orElse(null));
+                myOffer.map(ListingOffer::getId).orElse(null),
+                ListingImageService.urlsFor(listingImageRepository, listing));
     }
 
     /** Mirrors TaskService.myBidStatus: the current user's own latest non-withdrawn offer on this

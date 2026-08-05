@@ -16,6 +16,10 @@ import {
   ActiveTaskScreen,
   CreateListingScreen,
   ListingDetailsScreen,
+  UserProfileScreen,
+  WriteReviewScreen,
+  ReportUserScreen,
+  ImageViewerScreen,
 } from '../screens/main';
 import type { RootStackParamList } from './types';
 
@@ -58,6 +62,17 @@ const MainNavigator = () => {
         }}
       />
       <Stack.Screen name="ListingDetails" component={ListingDetailsScreen} />
+      <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+      <Stack.Screen name="WriteReview" component={WriteReviewScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="ReportUser" component={ReportUserScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen
+        name="ImageViewer"
+        component={ImageViewerScreen}
+        options={{
+          presentation: 'transparentModal',
+          cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+        }}
+      />
     </Stack.Navigator>
   );
 };

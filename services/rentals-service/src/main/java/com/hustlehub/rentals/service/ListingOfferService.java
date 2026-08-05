@@ -3,6 +3,8 @@ package com.hustlehub.rentals.service;
 import com.hustlehub.common.client.NotificationsServiceClient;
 import com.hustlehub.common.client.PaymentsServiceClient;
 import com.hustlehub.common.client.UserServiceClient;
+import com.hustlehub.common.dto.CompletedEngagementResponse;
+import com.hustlehub.common.dto.EngagementParticipantsResponse;
 import com.hustlehub.common.dto.NotificationType;
 import com.hustlehub.common.dto.TransferResult;
 import com.hustlehub.common.dto.UserSummaryResponse;
@@ -25,9 +27,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -247,5 +251,51 @@ public class ListingOfferService {
         }
         return userServiceClient.getSummaries(ids).stream()
                 .collect(Collectors.toMap(UserSummaryResponse::id, s -> s));
+    }
+
+    /** For reviews-service's "eligible to review" list — every accepted offer this user was either side of. */
+    public List<CompletedEngagementResponse> getAcceptedEngagements(UUID userId) {
+        List<CompletedEngagementResponse> engagements = new ArrayList<>();
+        for (ListingOffer offer : listingOfferRepository.findByRequesterIdAndStatus(userId, OfferStatus.ACCEPTED)) {
+            engagements.add(new CompletedEngagementResponse("RENTAL_OFFER", offer.getId(), offer.getListing().getOwnerId(), offer.getCreatedAt()));
+        }
+        for (ListingOffer offer : listingOfferRepository.findByListing_OwnerIdAndStatus(userId, OfferStatus.ACCEPTED)) {
+            engagements.add(new CompletedEngagementResponse("RENTAL_OFFER", offer.getId(), offer.getRequesterId(), offer.getCreatedAt()));
+        }
+        return engagements;
+    }
+
+    /**
+     * Admin-suspend cleanup: closes every ACTIVE listing this user owns, rejecting (and refunding
+     * any cash hold on) still-pending offers on them first - same lifecycle transitions
+     * acceptOffer already uses when one offer wins and the rest lose, just triggered by an admin
+     * action against every one of this owner's listings instead of one owner accepting one offer.
+     */
+    @Transactional
+    public void suspendCleanup(UUID ownerId) {
+        for (Listing listing : listingRepository.findByOwnerIdAndStatus(ownerId, ListingStatus.ACTIVE)) {
+            for (ListingOffer offer : listingOfferRepository.findByListingOrderByCreatedAtDesc(listing)) {
+                if (offer.getStatus() == OfferStatus.PENDING) {
+                    offer.setStatus(OfferStatus.REJECTED);
+                    listingOfferRepository.save(offer);
+                    if (offer.getOfferType() == OfferType.CASH) {
+                        try {
+                            paymentsServiceClient.refundHold(offer.getId());
+                        } catch (RuntimeException e) {
+                            // Log-and-continue: don't let one stuck hold block the rest of the cleanup.
+                        }
+                    }
+                }
+            }
+            listing.setStatus(ListingStatus.CLOSED);
+            listingRepository.save(listing);
+        }
+    }
+
+    /** For reviews-service's server-side review-eligibility re-validation. */
+    public Optional<EngagementParticipantsResponse> getParticipants(UUID offerId) {
+        return listingOfferRepository.findById(offerId)
+                .map(offer -> new EngagementParticipantsResponse(
+                        offer.getListing().getOwnerId(), offer.getRequesterId(), offer.getStatus() == OfferStatus.ACCEPTED));
     }
 }

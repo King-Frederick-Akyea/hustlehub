@@ -43,8 +43,15 @@ public class Message {
     @Column(name = "sender_id", nullable = false)
     private UUID senderId;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    /** Nullable — a message can be image-only. At least one of text/imagePath is always set (DB check constraint). */
+    @Column(columnDefinition = "TEXT")
     private String text;
+
+    @Column(name = "image_path", length = 500)
+    private String imagePath;
+
+    @Column(name = "image_content_type", length = 20)
+    private String imageContentType;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

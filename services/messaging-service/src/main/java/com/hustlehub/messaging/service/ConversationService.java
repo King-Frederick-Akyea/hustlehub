@@ -14,9 +14,11 @@ import com.hustlehub.messaging.entity.Conversation;
 import com.hustlehub.messaging.entity.Message;
 import com.hustlehub.messaging.repository.ConversationRepository;
 import com.hustlehub.messaging.repository.MessageRepository;
+import com.hustlehub.messaging.service.storage.ChatImageStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
@@ -33,6 +35,7 @@ public class ConversationService {
     private final MessageRepository messageRepository;
     private final UserServiceClient userServiceClient;
     private final NotificationsServiceClient notificationsServiceClient;
+    private final ChatImageStorageService chatImageStorageService;
 
     @Transactional
     public ConversationResponse startConversationWith(UUID currentUserId, UUID otherUserId, StartConversationRequest request) {
@@ -118,6 +121,46 @@ public class ConversationService {
                 .senderId(currentUserId)
                 .text(text.trim())
                 .build();
+        return saveAndNotify(conversation, message, currentUserId, message.getText());
+    }
+
+    /** Same as sendMessage, but with an image attached (and optional caption text) instead of/alongside plain text. */
+    @Transactional
+    public ChatMessageResponse sendImageMessage(UUID currentUserId, UUID conversationId, String text, MultipartFile file) {
+        Conversation conversation = findConversationOrThrow(conversationId);
+        assertParticipant(conversation, currentUserId);
+
+        ChatImageStorageService.StoredFile stored = chatImageStorageService.store(conversationId, file);
+        String trimmedText = (text != null && !text.isBlank()) ? text.trim() : null;
+
+        Message message = Message.builder()
+                .conversation(conversation)
+                .senderId(currentUserId)
+                .text(trimmedText)
+                .imagePath(stored.storagePath())
+                .imageContentType(stored.contentType())
+                .build();
+        return saveAndNotify(conversation, message, currentUserId, trimmedText != null ? trimmedText : "📷 Photo");
+    }
+
+    /** Returns the raw bytes + content type for a message's attached image — only a conversation participant may read it. */
+    @Transactional(readOnly = true)
+    public ImageData readMessageImage(UUID currentUserId, UUID conversationId, UUID messageId) {
+        Conversation conversation = findConversationOrThrow(conversationId);
+        assertParticipant(conversation, currentUserId);
+        Message message = messageRepository.findById(messageId)
+                .filter(m -> m.getConversation().getId().equals(conversationId))
+                .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
+        if (message.getImagePath() == null) {
+            throw new ResourceNotFoundException("This message has no image");
+        }
+        return new ImageData(chatImageStorageService.read(message.getImagePath()), message.getImageContentType());
+    }
+
+    public record ImageData(byte[] data, String contentType) {
+    }
+
+    private ChatMessageResponse saveAndNotify(Conversation conversation, Message message, UUID currentUserId, String notificationBody) {
         message = messageRepository.save(message);
 
         conversation.setLastMessageAt(message.getCreatedAt());
@@ -130,7 +173,7 @@ public class ConversationService {
                 .map(UserSummaryResponse::fullName)
                 .orElse("Someone");
         notificationsServiceClient.notify(recipientId, NotificationType.NEW_MESSAGE,
-                "New message from " + senderName, message.getText(), conversationId);
+                "New message from " + senderName, notificationBody, conversation.getId());
 
         return ChatMessageResponse.from(message, currentUserId);
     }
@@ -171,10 +214,19 @@ public class ConversationService {
 
     private ConversationResponse toResponse(Conversation conversation, UUID currentUserId, UserSummaryResponse otherUser) {
         String lastMessage = messageRepository.findFirstByConversationOrderByCreatedAtDesc(conversation)
-                .map(Message::getText)
+                .map(ConversationService::previewTextFor)
                 .orElse(null);
         int unreadCount = messageRepository.countByConversationAndSenderIdNotAndReadAtIsNull(conversation, currentUserId);
         return ConversationResponse.from(conversation, otherUser, lastMessage, unreadCount);
+    }
+
+    /** An image-only message has no text (see Message's javadoc) - fall back to a photo indicator
+     * instead of surfacing null, which the frontend would otherwise mistake for "no messages yet". */
+    private static String previewTextFor(Message message) {
+        if (message.getText() != null) {
+            return message.getText();
+        }
+        return message.getImagePath() != null ? "📷 Photo" : null;
     }
 
     private UUID smallerOf(UUID a, UUID b) {

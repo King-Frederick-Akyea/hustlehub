@@ -31,6 +31,15 @@ export function getRefreshToken() {
   return refreshToken;
 }
 
+/** For endpoints React Native's <Image> hits directly (bypassing apiClient's interceptor) but that still require auth, e.g. chat images - see ChatDetailScreen. */
+export function getAccessToken() {
+  return accessToken;
+}
+
+export function getApiUrl() {
+  return API_URL;
+}
+
 export async function setTokens(tokens: { accessToken: string; refreshToken: string }) {
   accessToken = tokens.accessToken;
   refreshToken = tokens.refreshToken;

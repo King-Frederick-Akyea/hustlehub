@@ -26,6 +26,7 @@
 		<module>notifications-service</module>
 		<module>payments-service</module>
 		<module>rentals-service</module>
+		<module>reviews-service</module>
 	</modules>
 
 	<properties>

@@ -27,6 +27,7 @@ import { typography } from '../../constants/typography';
 import { TASK_CATEGORIES } from '../../constants';
 import { createTask } from '../../services/taskService';
 import { parseApiError } from '../../api/errors';
+import DateTimeInputRow from '../../components/DateTimeInputRow';
 import type { ScreenProps } from '../../navigation/types';
 
 const { height } = Dimensions.get('window');
@@ -256,7 +257,16 @@ const PostTaskScreen = ({ navigation }: ScreenProps<'CreateTask'>) => {
     switch (currentStep) {
       case 0: return category !== null;
       case 1: return title.trim().length >= 2 && description.trim().length >= 10;
-      case 2: return !!dueDate && !!dueTime;
+      case 2: {
+        if (!dueDate || !dueTime) return false;
+        // Catches a past deadline here, at the step that owns it, instead of only discovering it
+        // from the backend's "Deadline must be in the future" error after reaching Review & Post.
+        const combined = new Date(
+          dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate(),
+          dueTime.getHours(), dueTime.getMinutes(), 0, 0
+        );
+        return combined.getTime() > Date.now();
+      }
       case 3:
         if (requiresTwoLocations) {
           return pickupLocation.trim() !== '' && dropoffLocation.trim() !== '';
@@ -533,22 +543,27 @@ const PostTaskScreen = ({ navigation }: ScreenProps<'CreateTask'>) => {
           <View style={styles.stepContainer}>
             <Text style={styles.stepTitle}>{STEPS[2].title}</Text>
             <Text style={styles.stepSubtitle}>{STEPS[2].subtitle}</Text>
-            <TouchableOpacity style={styles.pickerFullButton} onPress={() => setShowDatePicker(true)}>
-              <Text style={styles.fieldLabel}>Due Date</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} style={styles.inputIcon} />
-                <Text style={styles.pickerText}>{formatDate(dueDate)}</Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.pickerFullButton} onPress={() => setShowTimePicker(true)}>
-              <Text style={styles.fieldLabel}>Due Time</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="time-outline" size={18} color={colors.textSecondary} style={styles.inputIcon} />
-                <Text style={styles.pickerText}>{formatTime(dueTime)}</Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-              </View>
-            </TouchableOpacity>
+            <DateTimeInputRow
+              label="Due Date"
+              icon="calendar-outline"
+              mode="date"
+              value={dueDate}
+              formattedValue={formatDate(dueDate)}
+              onPressNative={() => setShowDatePicker(true)}
+              onChangeWeb={setDueDate}
+            />
+            <DateTimeInputRow
+              label="Due Time"
+              icon="time-outline"
+              mode="time"
+              value={dueTime}
+              formattedValue={formatTime(dueTime)}
+              onPressNative={() => setShowTimePicker(true)}
+              onChangeWeb={setDueTime}
+            />
+            {!isStepValid() && (
+              <Text style={styles.hintText}>Pick a date and time that's still in the future.</Text>
+            )}
           </View>
         );
 
@@ -640,36 +655,41 @@ const PostTaskScreen = ({ navigation }: ScreenProps<'CreateTask'>) => {
           <View style={styles.stepContainer}>
             <Text style={styles.stepTitle}>{STEPS[5].title}</Text>
             <Text style={styles.stepSubtitle}>{STEPS[5].subtitle}</Text>
+            <Text style={styles.editHintText}>Tap any field below to edit it.</Text>
             <View style={styles.summaryCard}>
-              <View style={styles.summaryRow}>
+              <TouchableOpacity style={styles.summaryRow} onPress={() => changeStep(0)} activeOpacity={0.6}>
                 <Ionicons name="pricetag-outline" size={20} color={colors.primary} style={styles.summaryIcon} />
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Category</Text>
                   <Text style={styles.summaryValue}>{category?.label || 'N/A'}</Text>
                 </View>
-              </View>
-              <View style={styles.summaryRow}>
+                <Ionicons name="pencil-outline" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.summaryRow} onPress={() => changeStep(1)} activeOpacity={0.6}>
                 <Ionicons name="create-outline" size={20} color={colors.primary} style={styles.summaryIcon} />
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Title</Text>
                   <Text style={styles.summaryValue}>{title}</Text>
                 </View>
-              </View>
-              <View style={styles.summaryRow}>
+                <Ionicons name="pencil-outline" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.summaryRow} onPress={() => changeStep(1)} activeOpacity={0.6}>
                 <Ionicons name="document-text-outline" size={20} color={colors.primary} style={styles.summaryIcon} />
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Description</Text>
                   <Text style={styles.summaryValue}>{description}</Text>
                 </View>
-              </View>
-              <View style={styles.summaryRow}>
+                <Ionicons name="pencil-outline" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.summaryRow} onPress={() => changeStep(2)} activeOpacity={0.6}>
                 <Ionicons name="calendar-outline" size={20} color={colors.primary} style={styles.summaryIcon} />
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Due</Text>
                   <Text style={styles.summaryValue}>{formatDate(dueDate)} at {formatTime(dueTime)}</Text>
                 </View>
-              </View>
-              <View style={styles.summaryRow}>
+                <Ionicons name="pencil-outline" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.summaryRow} onPress={() => changeStep(3)} activeOpacity={0.6}>
                 <Ionicons name="location-outline" size={20} color={colors.primary} style={styles.summaryIcon} />
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Location</Text>
@@ -679,14 +699,20 @@ const PostTaskScreen = ({ navigation }: ScreenProps<'CreateTask'>) => {
                       : location}
                   </Text>
                 </View>
-              </View>
-              <View style={[styles.summaryRow, styles.summaryRowLast]}>
+                <Ionicons name="pencil-outline" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.summaryRow, styles.summaryRowLast]}
+                onPress={() => changeStep(4)}
+                activeOpacity={0.6}
+              >
                 <Ionicons name="cash-outline" size={20} color={colors.primary} style={styles.summaryIcon} />
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Budget</Text>
                   <Text style={[styles.summaryValue, styles.budgetValue]}>GH¢ {budget || '0.00'}</Text>
                 </View>
-              </View>
+                <Ionicons name="pencil-outline" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
             </View>
             {parsedBudget != null && (
               <Text style={styles.holdNoticeText}>
@@ -749,7 +775,7 @@ const PostTaskScreen = ({ navigation }: ScreenProps<'CreateTask'>) => {
 
         {!isPickerOpen && (
           <View style={[styles.footer, { paddingBottom: (insets.bottom || spacing.sm) }]}>
-            {currentStep > 0 && currentStep < totalSteps - 1 && (
+            {currentStep > 0 && (
               <TouchableOpacity style={styles.backFooterButton} onPress={goBack}>
                 <Ionicons name="arrow-back" size={20} color={colors.textSecondary} />
                 <Text style={styles.backFooterText}>Back</Text>
@@ -920,6 +946,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.md,
   },
+  editHintText: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textTertiary,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.md,
+  },
   typeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1078,9 +1110,9 @@ const styles = StyleSheet.create({
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border + '30',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.border,
   },
   summaryRowLast: {
     borderBottomWidth: 0,

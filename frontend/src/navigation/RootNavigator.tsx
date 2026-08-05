@@ -7,6 +7,7 @@ import OnboardingNavigator from './OnboardingNavigator';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import VerificationNavigator, { resumeRouteFor } from './VerificationNavigator';
+import SuspendedScreen from '../screens/main/SuspendedScreen';
 import { Loading } from '../components/Shared';
 import { useAuth } from '../context/AuthContext';
 import { navigationRef } from './navigationRef';
@@ -63,6 +64,11 @@ const RootNavigator = () => {
           </Stack.Screen>
         ) : !isAuthenticated ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />
+        ) : user?.accountStatus === 'suspended' ? (
+          // Checked ahead of the verification/onboarding branch too - a suspended user is
+          // blocked from the whole app, not just the main tabs, regardless of where they were
+          // in onboarding when it happened.
+          <Stack.Screen name="Suspended" component={SuspendedScreen} />
         ) : !hasCompletedOnboarding ? (
           <Stack.Screen name="Verification">
             {() => <VerificationNavigator initialRoute={resumeRouteFor(user?.verificationStatus)} />}

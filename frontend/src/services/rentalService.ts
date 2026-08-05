@@ -33,6 +33,8 @@ export interface ListingItem {
   myOfferStatus: ListingOfferStatus | null;
   /** The id of that same offer (for withdrawOffer), or null alongside myOfferStatus. */
   myOfferId: string | null;
+  /** Relative paths (e.g. "/api/listings/{id}/images/{imageId}") ordered cover-first — prefix with EXPO_PUBLIC_API_URL to render. */
+  imageUrls: string[];
 }
 
 export interface ListingOfferItem {
@@ -110,5 +112,26 @@ export async function rejectOffer(offerId: string): Promise<ListingOfferItem> {
 
 export async function withdrawOffer(offerId: string): Promise<ListingOfferItem> {
   const res = await apiClient.post<ListingOfferItem>(`/api/offers/${offerId}/withdraw`);
+  return res.data;
+}
+
+/** Up to 6 images per listing (see rentals-service's ListingImageService), first upload = cover. Returns the full updated ordered URL list. */
+export async function uploadListingImage(listingId: string, uri: string): Promise<string[]> {
+  const formData = new FormData();
+  // React Native's FormData accepts this shape for file uploads; axios/RN handle the multipart boundary.
+  formData.append('file', {
+    uri,
+    name: 'listing-photo.jpg',
+    type: 'image/jpeg',
+  } as unknown as Blob);
+
+  const res = await apiClient.post<string[]>(`/api/listings/${listingId}/images`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+}
+
+export async function deleteListingImage(listingId: string, imageId: string): Promise<string[]> {
+  const res = await apiClient.delete<string[]>(`/api/listings/${listingId}/images/${imageId}`);
   return res.data;
 }

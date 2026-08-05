@@ -10,6 +10,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,6 +44,47 @@ const OFFER_STATUS_BADGE: Record<string, { label: string; variant: any }> = {
   accepted: { label: 'Accepted', variant: 'success' },
   rejected: { label: 'Rejected', variant: 'error' },
   withdrawn: { label: 'Withdrawn', variant: 'default' },
+};
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+// scrollContent (below) applies paddingHorizontal: spacing.lg, so the gallery's own nested
+// horizontal ScrollView viewport is the screen width minus that padding on both sides, not the
+// full screen width - pagingEnabled needs pages sized to match that exactly or it mis-snaps.
+const GALLERY_WIDTH = Dimensions.get('window').width - spacing.lg * 2;
+
+const ListingGallery = ({
+  imageUrls,
+  onPressImage,
+}: {
+  imageUrls: string[];
+  onPressImage: (url: string) => void;
+}) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  if (imageUrls.length === 0) return null;
+
+  return (
+    <View>
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => setActiveIndex(Math.round(e.nativeEvent.contentOffset.x / GALLERY_WIDTH))}
+      >
+        {imageUrls.map((url) => (
+          <TouchableOpacity key={url} activeOpacity={0.9} onPress={() => onPressImage(url)}>
+            <Image source={{ uri: `${API_URL}${url}` }} style={styles.galleryImage} resizeMode="cover" />
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      {imageUrls.length > 1 && (
+        <View style={styles.galleryDots}>
+          {imageUrls.map((url, i) => (
+            <View key={url} style={[styles.galleryDot, i === activeIndex && styles.galleryDotActive]} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
 };
 
 const ListingDetailsScreen = ({ navigation, route }: ScreenProps<'ListingDetails'>) => {
@@ -238,7 +281,12 @@ const ListingDetailsScreen = ({ navigation, route }: ScreenProps<'ListingDetails
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.badgeRow}>
+        <ListingGallery
+          imageUrls={listing.imageUrls}
+          onPressImage={(url) => navigation.navigate('ImageViewer', { imageUrl: url })}
+        />
+
+        <View style={[styles.badgeRow, listing.imageUrls.length > 0 && { marginTop: spacing.md }]}>
           <View style={[
             styles.typeBadge,
             { backgroundColor: listing.type === 'barter' ? `${colors.accent}20` : `${colors.primary}20` },
@@ -260,7 +308,11 @@ const ListingDetailsScreen = ({ navigation, route }: ScreenProps<'ListingDetails
 
         <Text style={styles.title}>{listing.title}</Text>
 
-        <TouchableOpacity style={styles.ownerCard} activeOpacity={isOwner ? 1 : 0.7}>
+        <TouchableOpacity
+          style={styles.ownerCard}
+          activeOpacity={isOwner ? 1 : 0.7}
+          onPress={isOwner ? undefined : () => navigation.navigate('UserProfile', { userId: listing.owner.id })}
+        >
           <Avatar source={resolveAvatarUrl(listing.owner.avatarUrl)} name={listing.owner.fullName} size="md" />
           <View style={styles.ownerInfo}>
             <Text style={styles.ownerName}>{isOwner ? 'You' : listing.owner.fullName}</Text>
@@ -342,15 +394,20 @@ const ListingDetailsScreen = ({ navigation, route }: ScreenProps<'ListingDetails
                     : null;
                 return (
                   <View key={offer.id} style={styles.offerRow}>
-                    <Avatar source={resolveAvatarUrl(offer.requester.avatarUrl)} name={offer.requester.fullName} size="sm" />
-                    <View style={styles.offerInfo}>
-                      <Text style={styles.ownerName}>{offer.requester.fullName}</Text>
-                      <Text style={styles.description}>
-                        {offer.offerType === 'cash'
-                          ? `Cash · ${offer.durationDays ?? '?'} day${offer.durationDays === 1 ? '' : 's'}${cashTotal ? ` · GH¢ ${cashTotal}` : ''}`
-                          : `Trade: ${offer.barterMessage ?? ''}`}
-                      </Text>
-                    </View>
+                    <TouchableOpacity
+                      style={styles.offerRequesterTouchable}
+                      onPress={() => navigation.navigate('UserProfile', { userId: offer.requester.id })}
+                    >
+                      <Avatar source={resolveAvatarUrl(offer.requester.avatarUrl)} name={offer.requester.fullName} size="sm" />
+                      <View style={styles.offerInfo}>
+                        <Text style={styles.ownerName}>{offer.requester.fullName}</Text>
+                        <Text style={styles.description}>
+                          {offer.offerType === 'cash'
+                            ? `Cash · ${offer.durationDays ?? '?'} day${offer.durationDays === 1 ? '' : 's'}${cashTotal ? ` · GH¢ ${cashTotal}` : ''}`
+                            : `Trade: ${offer.barterMessage ?? ''}`}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
                     <Badge label={badge.label} variant={badge.variant} size="sm" />
                     {offer.status === 'pending' && listing.status === 'active' && (
                       <View style={styles.offerActions}>
@@ -560,6 +617,28 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     marginLeft: 'auto',
   },
+  galleryImage: {
+    width: GALLERY_WIDTH,
+    height: GALLERY_WIDTH * 0.75,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  galleryDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: spacing.sm,
+  },
+  galleryDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.border,
+  },
+  galleryDotActive: {
+    backgroundColor: colors.primary,
+    width: 16,
+  },
   title: {
     fontSize: 22,
     fontWeight: '700',
@@ -687,6 +766,11 @@ const styles = StyleSheet.create({
   offerInfo: {
     flex: 1,
     marginLeft: spacing.sm,
+  },
+  offerRequesterTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   offerActions: {
     flexDirection: 'row',

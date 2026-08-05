@@ -58,7 +58,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST,
                     "/api/auth/register", "/api/auth/login", "/api/auth/refresh",
-                    "/api/auth/logout", "/api/auth/forgot-password", "/api/auth/reset-password"
+                    "/api/auth/logout", "/api/auth/forgot-password", "/api/auth/reset-password",
+                    "/api/auth/admin/login"
                 ).permitAll()
                 // Avatar images are rendered by React Native's <Image>, which hits this URL
                 // directly (no Authorization header attached) — must be publicly readable, same

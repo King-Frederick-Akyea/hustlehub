@@ -15,4 +15,7 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
     // parameter here — same reasoning as TaskRepository's category filtering: binding a null
     // enum through "(:x is null or ...)" trips Postgres's JDBC type inference.
     List<Listing> findByStatusAndOwnerIdNotOrderByCreatedAtDesc(ListingStatus status, UUID excludeOwnerId);
+
+    // Used by admin-suspend cleanup — see ListingOfferService.suspendCleanup.
+    List<Listing> findByOwnerIdAndStatus(UUID ownerId, ListingStatus status);
 }

@@ -14,21 +14,27 @@ import {
   Modal,
   Switch,
   TouchableWithoutFeedback,
+  Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
-import { createListing, ListingType } from '../../services/rentalService';
+import { createListing, uploadListingImage, ListingType } from '../../services/rentalService';
 import { parseApiError } from '../../api/errors';
 import type { ScreenProps } from '../../navigation/types';
+
+const MAX_PHOTOS = 6;
 
 const STEPS = [
   { id: 0, title: 'What are you posting?', subtitle: 'Choose a listing type' },
   { id: 1, title: 'Describe it', subtitle: 'Be clear and detailed' },
-  { id: 2, title: 'Terms', subtitle: 'Set your price or trade terms' },
-  { id: 3, title: 'Review & post', subtitle: 'Check everything is correct' },
+  { id: 2, title: 'Add photos', subtitle: 'Listings with photos get more offers' },
+  { id: 3, title: 'Terms', subtitle: 'Set your price or trade terms' },
+  { id: 4, title: 'Review & post', subtitle: 'Check everything is correct' },
 ];
 
 const LISTING_TYPES: { id: ListingType; label: string; description: string; icon: string }[] = [
@@ -61,6 +67,9 @@ const CreateListingScreen = ({ navigation }: ScreenProps<'CreateListing'>) => {
   // Barter-specific
   const [offering, setOffering] = useState('');
   const [barterSeeking, setBarterSeeking] = useState('');
+
+  // Photos (uploaded after the listing is created - see handlePost)
+  const [photos, setPhotos] = useState<string[]>([]);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -100,6 +109,8 @@ const CreateListingScreen = ({ navigation }: ScreenProps<'CreateListing'>) => {
       case 1:
         return title.trim().length >= 2 && description.trim().length >= 10;
       case 2:
+        return true; // Photos are optional
+      case 3:
         if (type === 'rental') {
           const rate = parseFloat(dailyRate);
           const hasRate = !isNaN(rate) && rate > 0;
@@ -110,11 +121,54 @@ const CreateListingScreen = ({ navigation }: ScreenProps<'CreateListing'>) => {
           return offering.trim() !== '' && barterSeeking.trim() !== '';
         }
         return false;
-      case 3:
+      case 4:
         return true;
       default:
         return false;
     }
+  };
+
+  const addPhoto = async (uri: string) => {
+    setPhotos((prev) => (prev.length < MAX_PHOTOS ? [...prev, uri] : prev));
+  };
+
+  const pickPhotoFromLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photos to add pictures.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      await addPhoto(result.assets[0].uri);
+    }
+  };
+
+  const takePhotoForListing = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your camera to add pictures.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    if (!result.canceled) {
+      await addPhoto(result.assets[0].uri);
+    }
+  };
+
+  const showAddPhotoOptions = () => {
+    Alert.alert('Add a Photo', 'Choose an option', [
+      { text: 'Take Photo', onPress: takePhotoForListing },
+      { text: 'Choose from Gallery', onPress: pickPhotoFromLibrary },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const removePhoto = (uri: string) => {
+    setPhotos((prev) => prev.filter((p) => p !== uri));
   };
 
   const handlePost = async () => {
@@ -125,25 +179,35 @@ const CreateListingScreen = ({ navigation }: ScreenProps<'CreateListing'>) => {
       const rate = parseFloat(dailyRate);
       const hasRate = !isNaN(rate) && rate > 0;
 
-      if (type === 'rental') {
-        await createListing({
-          type: 'rental',
-          title: title.trim(),
-          description: description.trim(),
-          dailyRate: hasRate ? rate : undefined,
-          barterAccepted,
-          seeking: barterAccepted && rentalSeeking.trim() !== '' ? rentalSeeking.trim() : undefined,
-        });
-      } else {
-        await createListing({
-          type: 'barter',
-          title: title.trim(),
-          description: description.trim(),
-          barterAccepted: true,
-          offering: offering.trim(),
-          seeking: barterSeeking.trim(),
-        });
+      const listing =
+        type === 'rental'
+          ? await createListing({
+              type: 'rental',
+              title: title.trim(),
+              description: description.trim(),
+              dailyRate: hasRate ? rate : undefined,
+              barterAccepted,
+              seeking: barterAccepted && rentalSeeking.trim() !== '' ? rentalSeeking.trim() : undefined,
+            })
+          : await createListing({
+              type: 'barter',
+              title: title.trim(),
+              description: description.trim(),
+              barterAccepted: true,
+              offering: offering.trim(),
+              seeking: barterSeeking.trim(),
+            });
+
+      // Uploaded sequentially, after the listing exists - the listing itself is already live at
+      // this point (a failed photo upload shouldn't be treated as the whole post failing).
+      for (const uri of photos) {
+        try {
+          await uploadListingImage(listing.id, uri);
+        } catch (err) {
+          // Best-effort: the listing is posted either way, so don't block success on one photo failing.
+        }
       }
+
       setSuccessModalVisible(true);
     } catch (err) {
       setPostError(parseApiError(err).message);
@@ -228,6 +292,38 @@ const CreateListingScreen = ({ navigation }: ScreenProps<'CreateListing'>) => {
           <View style={styles.stepContainer}>
             <Text style={styles.stepTitle}>{STEPS[2].title}</Text>
             <Text style={styles.stepSubtitle}>{STEPS[2].subtitle}</Text>
+            <View style={styles.photoGrid}>
+              {photos.map((uri) => (
+                <View key={uri} style={styles.photoThumbWrap}>
+                  <Image source={{ uri }} style={styles.photoThumb} />
+                  <TouchableOpacity style={styles.photoRemoveButton} onPress={() => removePhoto(uri)}>
+                    <Ionicons name="close" size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                  {photos[0] === uri && (
+                    <View style={styles.coverBadge}>
+                      <Text style={styles.coverBadgeText}>Cover</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+              {photos.length < MAX_PHOTOS && (
+                <TouchableOpacity style={styles.addPhotoButton} onPress={showAddPhotoOptions}>
+                  <Ionicons name="camera-outline" size={26} color={colors.primary} />
+                  <Text style={styles.addPhotoText}>Add Photo</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={styles.hintTextMuted}>
+              {photos.length}/{MAX_PHOTOS} photos {photos.length > 0 ? '· First photo is the cover image' : '· Optional, but listings with photos get more offers'}
+            </Text>
+          </View>
+        );
+
+      case 3:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>{STEPS[3].title}</Text>
+            <Text style={styles.stepSubtitle}>{STEPS[3].subtitle}</Text>
             {type === 'rental' ? (
               <>
                 <Text style={styles.fieldLabel}>Daily Rate (GH¢)</Text>
@@ -312,11 +408,11 @@ const CreateListingScreen = ({ navigation }: ScreenProps<'CreateListing'>) => {
           </View>
         );
 
-      case 3:
+      case 4:
         return (
           <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>{STEPS[3].title}</Text>
-            <Text style={styles.stepSubtitle}>{STEPS[3].subtitle}</Text>
+            <Text style={styles.stepTitle}>{STEPS[4].title}</Text>
+            <Text style={styles.stepSubtitle}>{STEPS[4].subtitle}</Text>
             <View style={styles.summaryCard}>
               <View style={styles.summaryRow}>
                 <Ionicons
@@ -625,6 +721,71 @@ const styles = StyleSheet.create({
     color: colors.error,
     marginTop: spacing.xs,
     marginBottom: spacing.sm,
+  },
+  hintTextMuted: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textTertiary,
+    marginTop: spacing.sm,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  photoThumbWrap: {
+    position: 'relative',
+    width: 96,
+    height: 96,
+  },
+  photoThumb: {
+    width: 96,
+    height: 96,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  photoRemoveButton: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  coverBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  coverBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  addPhotoButton: {
+    width: 96,
+    height: 96,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    backgroundColor: colors.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  addPhotoText: {
+    fontSize: typography.fontSize.xs,
+    color: colors.primary,
+    fontWeight: '600',
   },
   holdNoticeText: {
     fontSize: typography.fontSize.sm,

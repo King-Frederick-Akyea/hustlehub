@@ -6,6 +6,7 @@ import com.hustlehub.common.security.RestAuthEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -38,7 +39,16 @@ public class SecurityConfig {
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(restAuthEntryPoint)
                 .accessDeniedHandler(restAccessDeniedHandler))
-            .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+            .authorizeHttpRequests(auth -> auth
+                // Internal service-to-service calls carry X-Internal-Key instead of a user JWT;
+                // the key check happens inside InternalListingController itself, not here. Both
+                // GET (eligibility lookups) and POST (admin-suspend cleanup) live under here.
+                .requestMatchers("/internal/listings/**").permitAll()
+                // Listing images are rendered by React Native's <Image>, which hits this URL
+                // directly (no Authorization header attached) — must be publicly readable, same
+                // as identity-service's /api/users/*/avatar.
+                .requestMatchers(HttpMethod.GET, "/api/listings/*/images/*").permitAll()
+                .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

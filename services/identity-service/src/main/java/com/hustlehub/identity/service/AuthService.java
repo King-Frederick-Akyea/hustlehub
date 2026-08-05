@@ -11,9 +11,11 @@ import com.hustlehub.identity.dto.response.TokenPairResponse;
 import com.hustlehub.identity.entity.PasswordResetToken;
 import com.hustlehub.identity.entity.RefreshToken;
 import com.hustlehub.identity.entity.User;
+import com.hustlehub.identity.entity.AccountStatus;
 import com.hustlehub.identity.exception.EmailAlreadyExistsException;
 import com.hustlehub.identity.exception.InvalidCredentialsException;
 import com.hustlehub.identity.exception.InvalidOrExpiredTokenException;
+import com.hustlehub.identity.exception.SuspendedAccountException;
 import com.hustlehub.identity.repository.PasswordResetTokenRepository;
 import com.hustlehub.identity.repository.RefreshTokenRepository;
 import com.hustlehub.identity.repository.UserRepository;
@@ -80,6 +82,11 @@ public class AuthService {
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new InvalidCredentialsException();
         }
+        // Checked after credentials so a suspended user still just gets "invalid credentials" on
+        // a wrong password, not a free confirmation their account exists and is suspended.
+        if (user.getAccountStatus() == AccountStatus.SUSPENDED) {
+            throw new SuspendedAccountException(user.getSuspensionReason());
+        }
         return issueTokenPair(user);
     }
 
@@ -99,6 +106,12 @@ public class AuthService {
         }
 
         User user = existing.getUser();
+        // Caps how long a suspension can take to bite mid-session: the access token this issues
+        // is short-lived (15 min default), and every refresh from here on is blocked, so a
+        // suspended user is fully locked out within one more access-token lifetime at worst.
+        if (user.getAccountStatus() == AccountStatus.SUSPENDED) {
+            throw new SuspendedAccountException(user.getSuspensionReason());
+        }
         IssuedRefreshToken rotated = createRefreshToken(user);
         existing.setRevokedAt(Instant.now());
         existing.setReplacedByTokenId(rotated.entity().getId());

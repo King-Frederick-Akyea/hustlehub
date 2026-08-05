@@ -8,7 +8,11 @@
     "icon": "./assets/icon.jpg",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kingfrederick.hustlehub",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -16,7 +20,8 @@
         "foregroundImage": "./assets/android-icon-foreground.jpg",
         "backgroundImage": "./assets/android-icon-background.jpg",
         "monochromeImage": "./assets/android-icon-monochrome.jpg"
-      }
+      },
+      "package": "com.kingfrederick.hustlehub"
     },
     "web": {
       "favicon": "./assets/favicon.jpg"

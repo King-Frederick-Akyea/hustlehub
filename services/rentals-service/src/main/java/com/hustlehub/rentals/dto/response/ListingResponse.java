@@ -5,6 +5,7 @@ import com.hustlehub.rentals.entity.Listing;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record ListingResponse(
@@ -22,12 +23,14 @@ public record ListingResponse(
         Instant createdAt,
         int offerCount,
         String myOfferStatus,
-        UUID myOfferId
+        UUID myOfferId,
+        List<String> imageUrls
 ) {
     /** {@code owner} is pre-resolved by the service layer via UserServiceClient — this entity has
-     * no JPA relation to load it from (no users table in this service). */
+     * no JPA relation to load it from (no users table in this service). {@code imageUrls} is
+     * ordered cover-first (see ListingImageService.urlsFor). */
     public static ListingResponse from(Listing listing, UserSummaryResponse owner, long offerCount,
-                                        String myOfferStatus, UUID myOfferId) {
+                                        String myOfferStatus, UUID myOfferId, List<String> imageUrls) {
         return new ListingResponse(
                 listing.getId(),
                 listing.getOwnerId(),
@@ -43,7 +46,8 @@ public record ListingResponse(
                 listing.getCreatedAt(),
                 (int) offerCount,
                 myOfferStatus,
-                myOfferId
+                myOfferId,
+                imageUrls
         );
     }
 }

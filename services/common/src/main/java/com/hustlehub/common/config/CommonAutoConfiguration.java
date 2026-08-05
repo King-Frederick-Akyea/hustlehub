@@ -11,6 +11,6 @@ import org.springframework.context.annotation.Configuration;
  * itself to be found, but this makes the properties binding unambiguous either way.
  */
 @Configuration
-@EnableConfigurationProperties({JwtProperties.class, InternalApiProperties.class, IdentityServiceProperties.class, PaymentsServiceProperties.class, NotificationsServiceProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, InternalApiProperties.class, IdentityServiceProperties.class, PaymentsServiceProperties.class, NotificationsServiceProperties.class, TasksServiceProperties.class, RentalsServiceProperties.class, ReviewsServiceProperties.class})
 public class CommonAutoConfiguration {
 }

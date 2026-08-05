@@ -17,6 +17,7 @@ import { typography } from '../../constants/typography';
 import { useRole } from '../../context/RoleContext';
 import { useAuth } from '../../context/AuthContext';
 import { getMyTasks, getOpenTasks, TaskItem } from '../../services/taskService';
+import { getNotifications } from '../../services/notificationService';
 import { categoryMeta, distanceKm, formatDistance, formatRelativeTime, resolveAvatarUrl, taskDetailRoute } from '../../utils/taskDisplay';
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { Loading } from '../../components/Shared';
@@ -30,6 +31,7 @@ const HomeScreen = ({ navigation }: ScreenProps<'HomeTab'>) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const { location } = useUserLocation();
 
   const isPoster = currentRole === 'poster';
@@ -49,6 +51,13 @@ const HomeScreen = ({ navigation }: ScreenProps<'HomeTab'>) => {
   useFocusEffect(
     useCallback(() => {
       loadTasks();
+      // Re-checked every time Home regains focus (e.g. navigating back from Notifications), so
+      // the dot clears as soon as everything's been read instead of staying stuck until next launch.
+      getNotifications()
+        .then((list) => setHasUnreadNotifications(list.some((n) => !n.read)))
+        .catch(() => {
+          // Best-effort - a failed check just leaves the dot in its last known state.
+        });
     }, [loadTasks])
   );
 
@@ -139,7 +148,7 @@ const HomeScreen = ({ navigation }: ScreenProps<'HomeTab'>) => {
           onPress={() => navigation.navigate('Notifications')}
         >
           <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
-          <View style={styles.notificationDot} />
+          {hasUnreadNotifications && <View style={styles.notificationDot} />}
         </TouchableOpacity>
       </View>
 

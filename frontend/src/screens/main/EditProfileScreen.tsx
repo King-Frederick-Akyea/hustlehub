@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
+import { TASK_CATEGORIES } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import { parseApiError } from '../../api/errors';
 import type { ScreenProps } from '../../navigation/types';
@@ -29,6 +30,9 @@ const EditProfileScreen = ({ navigation }: ScreenProps<'EditProfile'>) => {
   const { user, updateProfile, uploadAvatar } = useAuth();
   const [name, setName] = useState(user?.fullName ?? '');
   const [bio, setBio] = useState(user?.bio ?? '');
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber ?? '');
+  const [availability, setAvailability] = useState(user?.availability ?? '');
+  const [specializations, setSpecializations] = useState<string[]>(user?.specializations ?? []);
   const [avatarImage, setAvatarImage] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -98,11 +102,21 @@ const EditProfileScreen = ({ navigation }: ScreenProps<'EditProfile'>) => {
     );
   };
 
+  const toggleSpecialization = (id: string) => {
+    setSpecializations((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+  };
+
   const handleSave = async () => {
     setError('');
     setSaving(true);
     try {
-      await updateProfile({ fullName: name.trim(), bio: bio.trim() });
+      await updateProfile({
+        fullName: name.trim(),
+        bio: bio.trim(),
+        phoneNumber: phoneNumber.trim(),
+        availability: availability.trim(),
+        specializations,
+      });
       navigation.goBack();
     } catch (err) {
       setError(parseApiError(err).message);
@@ -110,6 +124,8 @@ const EditProfileScreen = ({ navigation }: ScreenProps<'EditProfile'>) => {
       setSaving(false);
     }
   };
+
+  const showSpecializations = user?.role === 'tasker' || user?.role === 'both';
 
   const existingAvatarUri = user?.avatarUrl ? `${API_URL}${user.avatarUrl}` : null;
   const displayedAvatarUri = avatarImage ?? existingAvatarUri;
@@ -194,6 +210,55 @@ const EditProfileScreen = ({ navigation }: ScreenProps<'EditProfile'>) => {
               textAlignVertical="top"
             />
           </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Phone Number</Text>
+            <TextInput
+              style={styles.input}
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              placeholder="Optional — shared only via messages"
+              placeholderTextColor={colors.placeholder}
+              keyboardType="phone-pad"
+              maxLength={20}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Availability</Text>
+            <TextInput
+              style={styles.input}
+              value={availability}
+              onChangeText={setAvailability}
+              placeholder="e.g. Weekends only, evenings after 6pm"
+              placeholderTextColor={colors.placeholder}
+              maxLength={200}
+            />
+          </View>
+          {showSpecializations && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Specializations</Text>
+              <Text style={styles.helperText}>What kind of tasks are you great at?</Text>
+              <View style={styles.chipsWrap}>
+                {TASK_CATEGORIES.map((category) => {
+                  const active = specializations.includes(category.id);
+                  return (
+                    <TouchableOpacity
+                      key={category.id}
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => toggleSpecialization(category.id)}
+                    >
+                      <Ionicons
+                        name={category.icon as React.ComponentProps<typeof Ionicons>['name']}
+                        size={14}
+                        color={active ? colors.textInverse : colors.textSecondary}
+                        style={styles.chipIcon}
+                      />
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{category.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -318,6 +383,42 @@ const styles = StyleSheet.create({
   },
   bioInput: {
     minHeight: 80,
+  },
+  helperText: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textTertiary,
+    marginBottom: spacing.sm,
+    marginTop: -spacing.xs,
+  },
+  chipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  chipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  chipIcon: {
+    marginRight: spacing.xs,
+  },
+  chipText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  chipTextActive: {
+    color: colors.textInverse,
   },
 });
 

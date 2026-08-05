@@ -1,6 +1,7 @@
 package com.hustlehub.identity.security;
 
 import com.hustlehub.common.security.JwtProperties;
+import com.hustlehub.common.security.UserRole;
 import com.hustlehub.identity.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -45,6 +46,29 @@ public class JwtService {
                 .setSubject(user.getId().toString())
                 .claim("email", user.getEmail())
                 .claim("role", user.getRole().name())
+                .setIssuedAt(Date.from(now))
+                .setExpiration(Date.from(expiry))
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    /**
+     * Mints a token for the hardcoded admin login (AdminAuthController) — there's no persisted
+     * admin User row (see UserRole.ADMIN's javadoc), so unlike {@link #generateAccessToken}, this
+     * doesn't take a User at all; the subject is a fixed synthetic id. This works because
+     * common's JwtValidator only ever reads claims off the token, never looks anything up in a
+     * database, so every service's existing JwtAuthenticationFilter recognizes ROLE_ADMIN for
+     * free. Longer-lived than a normal access token (12h) and deliberately has no refresh-token
+     * counterpart — refresh tokens are tied to a real persisted User via RefreshTokenRepository,
+     * which this session doesn't have, so the admin just logs in again after 12h instead.
+     */
+    public String generateAdminAccessToken() {
+        Instant now = Instant.now();
+        Instant expiry = now.plus(12, ChronoUnit.HOURS);
+        return Jwts.builder()
+                .setSubject("00000000-0000-0000-0000-000000000000")
+                .claim("email", "admin@hustlehub.internal")
+                .claim("role", UserRole.ADMIN.name())
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(expiry))
                 .signWith(key, SignatureAlgorithm.HS256)

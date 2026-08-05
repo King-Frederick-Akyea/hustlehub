@@ -115,7 +115,14 @@ const ProfileScreen = ({ navigation }: ScreenProps<'ProfileTab'>) => {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{`GH₵ ${user.totalEarnings.toFixed(2)}`}</Text>
+              <Text
+                style={styles.statValue}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
+                {`GH₵${user.totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              </Text>
               <Text style={styles.statLabel}>Earned</Text>
             </View>
           </View>

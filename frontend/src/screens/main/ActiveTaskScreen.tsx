@@ -235,16 +235,21 @@ const ActiveTaskScreen = ({ navigation, route }: ScreenProps<'ActiveTask'>) => {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>{isPoster ? 'Assigned Tasker' : 'Posted By'}</Text>
             <View style={styles.otherPartyRow}>
-              <Avatar source={resolveAvatarUrl(otherParty.avatarUrl)} name={otherParty.fullName} size="md" />
-              <View style={styles.otherPartyInfo}>
-                <View style={styles.otherPartyNameRow}>
-                  <Text style={styles.otherPartyName}>{otherParty.fullName}</Text>
-                  {otherParty.verified && (
-                    <Ionicons name="checkmark-circle" size={15} color={colors.verified} style={{ marginLeft: 4 }} />
-                  )}
+              <TouchableOpacity
+                style={styles.otherPartyTouchable}
+                onPress={() => navigation.navigate('UserProfile', { userId: otherParty.id })}
+              >
+                <Avatar source={resolveAvatarUrl(otherParty.avatarUrl)} name={otherParty.fullName} size="md" />
+                <View style={styles.otherPartyInfo}>
+                  <View style={styles.otherPartyNameRow}>
+                    <Text style={styles.otherPartyName}>{otherParty.fullName}</Text>
+                    {otherParty.verified && (
+                      <Ionicons name="checkmark-circle" size={15} color={colors.verified} style={{ marginLeft: 4 }} />
+                    )}
+                  </View>
+                  <Text style={styles.otherPartyRole}>{isPoster ? 'Tasker' : 'Poster'}</Text>
                 </View>
-                <Text style={styles.otherPartyRole}>{isPoster ? 'Tasker' : 'Poster'}</Text>
-              </View>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
                 <Ionicons name="chatbubble-outline" size={20} color={colors.primary} />
               </TouchableOpacity>
@@ -481,6 +486,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   otherPartyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  otherPartyTouchable: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
   },

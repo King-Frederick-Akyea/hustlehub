@@ -3,6 +3,7 @@ package com.hustlehub.identity.controller;
 import com.hustlehub.common.exception.ResourceNotFoundException;
 import com.hustlehub.common.security.AuthPrincipal;
 import com.hustlehub.identity.dto.request.UpdateProfileRequest;
+import com.hustlehub.identity.dto.response.PublicProfileResponse;
 import com.hustlehub.identity.dto.response.UserResponse;
 import com.hustlehub.identity.repository.UserRepository;
 import com.hustlehub.identity.service.UserService;
@@ -50,6 +51,11 @@ public class UserController {
     public UserResponse uploadAvatar(@AuthenticationPrincipal AuthPrincipal principal,
                                       @RequestParam("file") MultipartFile file) {
         return userService.uploadAvatar(principal.id(), file);
+    }
+
+    @GetMapping("/{id}")
+    public PublicProfileResponse publicProfile(@PathVariable UUID id) {
+        return userService.getPublicProfile(id);
     }
 
     @GetMapping("/{id}/avatar")

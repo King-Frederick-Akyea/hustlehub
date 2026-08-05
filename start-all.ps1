@@ -21,6 +21,7 @@ $services = @(
     @{ Name = "notifications-service"; Dir = "services\notifications-service" },
     @{ Name = "payments-service";      Dir = "services\payments-service" },
     @{ Name = "rentals-service";       Dir = "services\rentals-service" },
+    @{ Name = "reviews-service";       Dir = "services\reviews-service" },
     @{ Name = "gateway-service";       Dir = "services\gateway-service" }
 )
 
@@ -31,7 +32,7 @@ foreach ($svc in $services) {
 }
 
 Write-Host ""
-Write-Host "All seven services are launching in separate windows:"
+Write-Host "All eight services are launching in separate windows:"
 Write-Host "  gateway-service        -> http://localhost:8080  (this is what the app talks to)"
 Write-Host "  identity-service       -> http://localhost:8181"
 Write-Host "  tasks-service          -> http://localhost:8182"
@@ -39,5 +40,6 @@ Write-Host "  messaging-service      -> http://localhost:8183"
 Write-Host "  notifications-service  -> http://localhost:8184"
 Write-Host "  payments-service       -> http://localhost:8185"
 Write-Host "  rentals-service        -> http://localhost:8186"
+Write-Host "  reviews-service        -> http://localhost:8187"
 Write-Host ""
 Write-Host "Each takes 15-60s to finish booting (Flyway + JPA startup). Close a window (or Ctrl+C inside it) to stop that service."

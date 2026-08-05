@@ -11,6 +11,8 @@ export type VerificationStatus =
   | 'fully_verified'
   | 'rejected';
 
+export type AccountStatus = 'active' | 'suspended';
+
 export interface AuthUser {
   id: string;
   fullName: string;
@@ -22,6 +24,14 @@ export interface AuthUser {
   avatarUrl?: string | null;
   completedTasksCount: number;
   totalEarnings: number;
+  averageRating: number;
+  reviewCount: number;
+  adminVerified: boolean;
+  accountStatus: AccountStatus;
+  suspensionReason?: string | null;
+  phoneNumber?: string | null;
+  availability?: string | null;
+  specializations: string[];
   createdAt: string;
 }
 
@@ -54,6 +64,27 @@ export async function logout(refreshToken: string): Promise<void> {
 
 export async function fetchCurrentUser(): Promise<AuthUser> {
   const res = await apiClient.get<AuthUser>('/api/users/me');
+  return res.data;
+}
+
+/** Another user's profile — no email/phone/earnings, see identity-service's PublicProfileResponse. */
+export interface PublicProfile {
+  id: string;
+  fullName: string;
+  role: UserRole;
+  bio: string | null;
+  avatarUrl: string | null;
+  adminVerified: boolean;
+  completedTasksCount: number;
+  averageRating: number;
+  reviewCount: number;
+  availability: string | null;
+  specializations: string[];
+  memberSince: string;
+}
+
+export async function fetchPublicProfile(userId: string): Promise<PublicProfile> {
+  const res = await apiClient.get<PublicProfile>(`/api/users/${userId}`);
   return res.data;
 }
 
@@ -95,7 +126,13 @@ export async function uploadFacePhoto(uri: string): Promise<AuthUser> {
   return uploadImage('/api/verification/face-photo', uri, 'face-photo.jpg');
 }
 
-export async function updateProfile(data: { fullName?: string; bio?: string }): Promise<AuthUser> {
+export async function updateProfile(data: {
+  fullName?: string;
+  bio?: string;
+  phoneNumber?: string;
+  availability?: string;
+  specializations?: string[];
+}): Promise<AuthUser> {
   const res = await apiClient.patch<AuthUser>('/api/users/me', data);
   return res.data;
 }

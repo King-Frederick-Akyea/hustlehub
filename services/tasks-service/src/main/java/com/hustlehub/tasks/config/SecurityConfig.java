@@ -39,7 +39,12 @@ public class SecurityConfig {
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(restAuthEntryPoint)
                 .accessDeniedHandler(restAccessDeniedHandler))
-            .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+            .authorizeHttpRequests(auth -> auth
+                // Internal service-to-service calls carry X-Internal-Key instead of a user JWT;
+                // the key check happens inside InternalTaskController itself, not here. Both
+                // GET (stats/eligibility lookups) and POST (admin-suspend cleanup) live under here.
+                .requestMatchers("/internal/tasks/**").permitAll()
+                .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

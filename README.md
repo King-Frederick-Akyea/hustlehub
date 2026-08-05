@@ -8,8 +8,12 @@ can also list items/services for rent or barter, and chat with each other in-app
 The system has two halves that live in this one repo:
 
 - **`frontend/`** — an Expo (React Native) app: the mobile client students use.
-- **`services/`** — seven independently-deployable Spring Boot microservices plus one shared
+- **`services/`** — eight independently-deployable Spring Boot microservices plus one shared
   library module, fronted by a lightweight gateway.
+
+There's also a third piece in a sibling repo, `hustlehubwebsite/` (the public marketing site),
+which now also hosts the admin panel under `/admin` — see its own README for setup. It talks to
+this repo's `gateway-service` over HTTP just like the mobile app does.
 
 ---
 
@@ -17,7 +21,7 @@ The system has two halves that live in this one repo:
 
 ```
 hustlehub/
-├── start-all.ps1              # Launches all 7 backend services, one per PowerShell window
+├── start-all.ps1              # Launches all 8 backend services, one per PowerShell window
 ├── frontend/                  # Expo / React Native app
 │   ├── App.tsx, index.tsx     # App entry points
 │   ├── app.json               # Expo config (icons, plugins, scheme)
@@ -45,7 +49,8 @@ hustlehub/
     ├── messaging-service/       # Conversations + messages (port 8183)
     ├── notifications-service/   # Push notifications + device tokens (port 8184)
     ├── payments-service/        # Wallet, top-ups/withdrawals, escrow, Paystack webhooks (port 8185)
-    └── rentals-service/         # Rental/barter listings + offers (port 8186)
+    ├── rentals-service/         # Rental/barter listings + offers + listing photos (port 8186)
+    └── reviews-service/         # Reviews (post-engagement ratings) + user reports (port 8187)
 ```
 
 ### How the backend fits together
@@ -53,16 +58,17 @@ hustlehub/
 ```
                          ┌─────────────────────┐
    Expo app  ───────────▶│  gateway-service      │  :8080  (routes by URL prefix, no auth logic of its own)
+ hustlehubwebsite/admin ▶│                       │
                          └──────────┬───────────┘
                                     │
-        ┌───────────────┬──────────┼───────────────┬───────────────┬────────────────┐
-        ▼               ▼          ▼               ▼               ▼                ▼
- identity-service  tasks-service  messaging-service notifications  payments-service rentals-service
-     :8181            :8182          :8183         -service:8184      :8185           :8186
-        │               │              │                │               │                │
-        └───────────────┴──────────────┴────────────────┴───────────────┴────────────────┘
+    ┌──────────────┬───────────────┼───────────────┬───────────────┬───────────────┬────────────────┐
+    ▼              ▼               ▼               ▼               ▼               ▼                ▼
+identity-service tasks-service messaging-service notifications  payments-service rentals-service reviews-service
+   :8181           :8182          :8183         -service:8184      :8185           :8186            :8187
+    │              │               │                │               │               │                │
+    └──────────────┴───────────────┴────────────────┴───────────────┴───────────────┴────────────────┘
                               each owns its own Postgres database
-                   (hustlehub_identity / _tasks / _messaging / _notifications / _payments / _rentals)
+     (hustlehub_identity / _tasks / _messaging / _notifications / _payments / _rentals / _reviews)
 ```
 
 - **No shared database.** Every service owns its own schema (Flyway-managed migrations under
@@ -71,15 +77,21 @@ hustlehub/
 - **Auth is stateless and shared.** `identity-service` issues JWTs. Every other service validates
   that same JWT locally (via `common`'s `JwtAuthenticationFilter`) using an identical
   `app.jwt.secret` — it never calls back into identity-service to check a token. This is why
-  **the JWT secret must be byte-for-byte identical across all six business services.**
+  **the JWT secret must be byte-for-byte identical across all seven business services.**
 - **Service-to-service calls** (e.g. tasks-service asking identity-service for a user's display
   name, or escrow holds against payments-service) go through `/internal/**` endpoints, protected
   by a second shared secret, `app.internal.key`, sent as the `X-Internal-Key` header. This also
-  must be identical across all six services.
+  must be identical across all seven services.
 - **`common`** is a plain shared library (not a runnable service). It supplies the JWT filter,
   the standard error response shape, and typed HTTP clients (`UserServiceClient`,
-  `PaymentsServiceClient`, `NotificationsServiceClient`) so no service hand-rolls its own HTTP
-  calls to another.
+  `PaymentsServiceClient`, `NotificationsServiceClient`, `TasksServiceClient`,
+  `RentalsServiceClient`, `ReviewsServiceClient`) so no service hand-rolls its own HTTP calls to
+  another.
+- **Admin requests carry the same kind of JWT as everyone else**, just with `role=ADMIN` and no
+  backing `User` row — see identity-service's `AdminAuthController`/`JwtService.
+  generateAdminAccessToken`. Every service's existing `JwtAuthenticationFilter` recognizes it for
+  free; admin-only endpoints (`/api/users/admin/**`, `/api/reports/admin/**`) check the role
+  inline, the same way `/internal/**` endpoints check `X-Internal-Key`.
 
 ### Gateway route table
 
@@ -91,6 +103,7 @@ hustlehub/
 | `/api/notifications` | notifications-service |
 | `/api/payments` | payments-service |
 | `/api/listings`, `/api/offers` | rentals-service |
+| `/api/reviews`, `/api/reports` | reviews-service |
 
 ---
 
@@ -122,6 +135,7 @@ CREATE DATABASE hustlehub_messaging;
 CREATE DATABASE hustlehub_notifications;
 CREATE DATABASE hustlehub_payments;
 CREATE DATABASE hustlehub_rentals;
+CREATE DATABASE hustlehub_reviews;
 ```
 
 Each service runs its own Flyway migrations automatically on first boot — you never run SQL
@@ -149,11 +163,15 @@ Then edit `services/.env.properties` and fill in:
   [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
   ```
 - `INTERNAL_API_KEY` — same idea, any random string.
+- `ADMIN_USERNAME` / `ADMIN_PASSWORD` — the one hardcoded login for the admin panel
+  (`hustlehubwebsite/app/admin`). Only identity-service reads these (see
+  `AdminAuthController`) — there's no `admin_users` table, just this one shared login.
 
-That's it for **tasks-service, messaging-service, notifications-service, and rentals-service** —
-they need nothing else. **identity-service** and **payments-service** each additionally have their
-own small `application-dev.properties` (same copy-from-`.example` pattern, in that service's own
-`src/main/resources/`) for the one or two things that are genuinely specific to them, not shared:
+That's it for **tasks-service, messaging-service, notifications-service, rentals-service, and
+reviews-service** — they need nothing else. **identity-service** and **payments-service** each
+additionally have their own small `application-dev.properties` (same copy-from-`.example`
+pattern, in that service's own `src/main/resources/`) for the one or two things that are
+genuinely specific to them, not shared:
 
 - `identity-service/application-dev.properties` — outgoing email. Leave `app.mail.provider=logging`
   (the default — just prints codes to the console) unless you have a real Brevo API key; with
@@ -199,7 +217,7 @@ From the repo root:
 ```
 
 This opens one PowerShell window per service (identity, tasks, messaging, notifications,
-payments, rentals, gateway — in that order), each running `./mvnw.cmd spring-boot:run`. Each
+payments, rentals, reviews, gateway — in that order), each running `./mvnw.cmd spring-boot:run`. Each
 service takes ~15–30s to finish booting (Flyway migration + JPA startup). Close a window, or
 `Ctrl+C` inside it, to stop just that service without touching the others.
 
@@ -224,6 +242,7 @@ everything.
 | notifications-service | 8184 | hustlehub_notifications |
 | payments-service | 8185 | hustlehub_payments |
 | rentals-service | 8186 | hustlehub_rentals |
+| reviews-service | 8187 | hustlehub_reviews |
 
 (Ports intentionally skip 8081–8084 — Expo/Metro's dev bundler claims 8081 by default and falls
 back to 8082+ if that's taken, so the whole 808x range under 8080 stays reserved for frontend
@@ -292,7 +311,7 @@ the banner) — you're missing `services/.env.properties`. Fix: see §3.2.
 happen anymore now that the secrets live in one shared `services/.env.properties`, but if you ever
 see it: something is overriding `JWT_SECRET`/`INTERNAL_API_KEY` for just one service (an env var set
 in that specific terminal, a stray line re-added to that service's own `application-dev.properties`,
-etc.) — all six business services must resolve to the exact same two values.
+etc.) — all seven business services must resolve to the exact same two values.
 
 **`Connection to localhost:5432 refused`** — Postgres isn't running. On Windows: `Get-Service
 postgresql*` to check, `Start-Service postgresql-x64-17` (adjust version) to start it.
@@ -305,7 +324,7 @@ migration file. Never edit a migration that's already run against your local DB;
 `V{n}__description.sql` instead. If it's your own throwaway local DB, the fastest fix is dropping
 and recreating that one database and letting Flyway re-run from scratch.
 
-**`Address already in use` on 8080–8186** — a previous run is still alive. Find and stop it:
+**`Address already in use` on 8080–8187** — a previous run is still alive. Find and stop it:
 ```powershell
 Get-Process java | Select-Object Id,StartTime
 Stop-Process -Id <id>
@@ -377,3 +396,29 @@ these flows:
   accepted offer on a listing, and show how many offers an owner has received without opening each
   listing individually. A `rejected` `myOfferStatus` does **not** block making a new offer — same
   as a rejected bid doesn't block re-bidding on a task.
+- **There are two unrelated "verified" concepts on a `User` — don't conflate them.**
+  `verificationStatus` (`pending` → ... → `fully_verified`) is the existing self-serve pipeline:
+  uploading a student ID + face photo auto-completes it with **no human review** (see
+  `VerificationService` — the images are just stored for possible later inspection). `adminVerified`
+  is a completely separate, admin-only trust badge (`User.adminVerified`/`adminVerifiedAt`),
+  granted from the admin panel after an admin actually looks at those stored documents
+  (`GET /api/users/admin/{id}/documents/{type}`). A user can be `fully_verified` and not
+  `adminVerified`, and vice versa — the mobile app's "HustleHub Verified" badge on a profile means
+  `adminVerified`, not `verificationStatus`.
+- **A review can only be written about a completed engagement you were actually part of.**
+  `POST /api/reviews` never trusts the client's `relatedType`/`relatedId`/`revieweeId` — reviews-service
+  re-derives eligibility itself via `TasksServiceClient`/`RentalsServiceClient` (task status must be
+  `COMPLETED`; a rental/barter offer must be `ACCEPTED` — rentals have no explicit "completed" state,
+  so an accepted offer is the bar) before accepting it. `GET /api/reviews/eligible` is what powers
+  the "Write a Review" button only showing up when there's something eligible to review.
+- **Suspending a user is not instantaneous for a session already in progress.** `AuthService.login`/
+  `.refresh` both reject a suspended user immediately, but a suspended user's *existing* access
+  token (15-minute default TTL) still validates locally at every other service until it expires —
+  this is a deliberate tradeoff, not a bug: the JWT design here is intentionally stateless with no
+  per-request DB lookup (see `JwtAuthenticationFilter`'s own comment), so true instant revocation
+  would need either a live per-request check or a gateway-level cache, both bigger changes than this
+  scope called for. Worst case, a just-suspended user is fully locked out within one more
+  access-token lifetime. Suspending also runs a best-effort cleanup
+  (`TasksServiceClient`/`RentalsServiceClient.suspendCleanup`) that cancels/closes that user's own
+  **open** tasks and **active** listings — anything already in progress with another user is left
+  alone so that other user isn't penalized.

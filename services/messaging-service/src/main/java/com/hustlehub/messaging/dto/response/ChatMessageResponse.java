@@ -16,16 +16,21 @@ public record ChatMessageResponse(
         UUID conversationId,
         UUID senderId,
         String text,
+        String imageUrl,
         Instant createdAt,
         boolean isMine,
         boolean read
 ) {
     public static ChatMessageResponse from(Message message, UUID currentUserId) {
+        String imageUrl = message.getImagePath() != null
+                ? "/api/conversations/" + message.getConversation().getId() + "/messages/" + message.getId() + "/image"
+                : null;
         return new ChatMessageResponse(
                 message.getId(),
                 message.getConversation().getId(),
                 message.getSenderId(),
                 message.getText(),
+                imageUrl,
                 message.getCreatedAt(),
                 message.getSenderId().equals(currentUserId),
                 message.getReadAt() != null
